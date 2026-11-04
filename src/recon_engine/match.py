@@ -40,7 +40,7 @@ class _Side:
     total: Decimal = Decimal(0)
 
 
-def _as_date(value: Any, where: str) -> date:
+def as_date(value: Any, where: str) -> date:
     if isinstance(value, datetime):
         return value.date()
     if isinstance(value, date):
@@ -75,7 +75,7 @@ def _prepare(
     for ordinal, row in enumerate(frame[needed].itertuples(index=False, name=None)):
         rid = row_id(extract_id, ordinal)
         where = f"side {label} row {rid}"
-        if period is not None and not period.contains(_as_date(row[-1], where)):
+        if period is not None and not period.contains(as_date(row[-1], where)):
             side.excluded.append(rid)
             continue
 

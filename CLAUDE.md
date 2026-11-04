@@ -60,7 +60,7 @@ recon_engine/
       sql.py              # SQLAlchemy, SELECT-only via sqlglot
       powerbi.py          # Phase 5
     match.py
-    tests/                # discrepancy tests (call them "checks" in code to avoid pytest clash)
+    checks/               # discrepancy tests, called "checks" to avoid a clash with pytest
       base.py             # Check interface + registry
       timing.py
       status_filter.py

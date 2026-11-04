@@ -33,3 +33,14 @@ or point `UV_PROJECT_ENVIRONMENT` at a short directory.
 - `models.py`: pydantic models (Connection, Extract, MatchSpec, MatchResult, ...)
 - `connectors/`: `files.py` (CSV/XLSX) and `sql.py` (SQLAlchemy, SELECT-only via sqlglot)
 - `match.py`: row-level matching of two extracts and the gap
+- `checks/`: discrepancy checks (timing, status_filter, tax_basis, duplicates,
+  sign_credit) behind one interface and registry; the engine sums each bucket and
+  refuses overlapping claims
+- `fixtures/generate.py`: deterministic "dashboard vs Xero" pair with injected
+  issues; output and answer key live in `fixtures/data/`
+
+Regenerate the fixtures with:
+
+```bash
+uv run python fixtures/generate.py
+```

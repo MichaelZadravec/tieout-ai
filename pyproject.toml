@@ -31,7 +31,7 @@ build-backend = "uv_build"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = ["--import-mode=importlib", "--strict-markers"]
-pythonpath = ["tests"]
+pythonpath = ["tests", "."]
 
 [tool.ruff]
 line-length = 100

@@ -1,4 +1,4 @@
-"""Core data model. Later phases add Assumption, Bucket and Certificate here."""
+"""Core data model. Phase 3 adds Certificate here."""
 
 from __future__ import annotations
 
@@ -6,10 +6,12 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
 from enum import StrEnum
-from typing import Any
+from typing import Any, Literal
 
 import pandas as pd
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+from recon_engine.hashing import canonical_json, sha256_hex
 
 
 class _Model(BaseModel):
@@ -148,3 +150,62 @@ class MatchResult(_Model):
     total_a: Decimal
     total_b: Decimal
     gap: Decimal
+
+
+class Assumption(_Model):
+    """A parameter choice that affects the result. Only a human confirms one, via the CLI.
+
+    The id is derived from the parameter and value, so proposing the same thing
+    twice gives the same assumption.
+    """
+
+    id: str
+    description: str
+    parameter: str
+    value: Any
+    proposed_by: Literal["ai", "human"]
+    confirmed: bool = False
+    confirmed_by: str | None = None
+    confirmed_at: datetime | None = None
+
+    @classmethod
+    def propose(
+        cls,
+        parameter: str,
+        value: Any,
+        description: str,
+        proposed_by: Literal["ai", "human"] = "ai",
+    ) -> Assumption:
+        digest = sha256_hex(canonical_json([parameter, value]))
+        return cls(
+            id=f"asm_{digest[:12]}",
+            description=description,
+            parameter=parameter,
+            value=value,
+            proposed_by=proposed_by,
+        )
+
+
+class Bucket(_Model):
+    """What one check proved: the discrepancy items it claims and their summed amount.
+
+    `amount` is the bucket's contribution to the gap (A minus B). `row_ids` are the
+    rows behind the claimed items; `evidence_row_ids` are rows the check read as
+    proof without claiming them (for example a timing counterpart outside the period).
+    """
+
+    check_name: str
+    check_version: str
+    parameters: dict[str, Any]
+    item_ids: list[str]
+    row_ids: list[str]
+    evidence_row_ids: list[str]
+    amount: Decimal
+    row_count: int
+    assumptions: list[Assumption]
+
+    @model_validator(mode="after")
+    def _counted(self) -> Bucket:
+        if self.row_count != len(self.row_ids):
+            raise ValueError("row_count must equal the number of row_ids")
+        return self
