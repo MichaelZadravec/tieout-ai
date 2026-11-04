@@ -159,12 +159,28 @@ def test_missing_column_is_a_clear_error():
         match(a, b, spec_for(a, b, amount_column_b="total"))
 
 
-@pytest.mark.parametrize(("value", "message"), [("ten", "is not a number"), (None, "is empty")])
-def test_bad_amounts_are_a_clear_error(value, message):
-    a = make_extract([("INV-001", "2026-10-03", value, "PAID")], "a")
+def test_non_numeric_amount_is_a_clear_error():
+    a = make_extract([("INV-001", "2026-10-03", "ten", "PAID")], "a")
     b = make_extract(INVOICES, "b")
-    with pytest.raises(MatchError, match=message):
+    with pytest.raises(MatchError, match="is not a number"):
         match(a, b, spec_for(a, b))
+
+
+def test_empty_amount_becomes_a_data_quality_row_not_an_error():
+    a = make_extract([("INV-001", "2026-10-03", None, "PAID"), *INVOICES[1:]], "a")
+    b = make_extract(INVOICES, "b")
+    result = match(a, b, spec_for(a, b))
+
+    [invalid] = result.invalid_a
+    assert invalid.row_id == f"{a.extract.id}:0"
+    assert invalid.key == ["INV-001"]
+    assert "amount" in invalid.reason
+    assert result.invalid_b == []
+    # The row is left out of the totals, so B's INV-001 is unmatched.
+    assert [r.key for r in result.only_b] == [["INV-001"]]
+    assert result.total_a == INVOICE_TOTAL - Decimal("100.00")
+    assert result.gap == Decimal("-100.00")
+    assert_conserved(result)
 
 
 def test_period_filter_excludes_and_records_rows_outside_the_period():

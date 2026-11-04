@@ -5,6 +5,8 @@ A match leaves a set of discrepancy *items* whose amounts sum exactly to the gap
 - each row only on side A           (contributes +amount)
 - each row only on side B           (contributes -amount)
 - each key whose amounts disagree   (contributes amount_a - amount_b)
+- each row that could not be used   (data quality: contributes 0, but is still
+  unexplained, so it keeps the reconciliation open)
 
 A check tests one hypothesis against the open items and claims only the items
 it can prove. The engine, not the check, sums the claimed amounts, refuses any
@@ -47,13 +49,14 @@ class Item:
     """One unit of unexplained difference. `amount` is its contribution to the gap."""
 
     id: str
-    kind: Literal["only_a", "only_b", "difference"]
+    kind: Literal["only_a", "only_b", "difference", "data_quality"]
     key: tuple[Any, ...]
     amount: Decimal
     amount_a: Decimal | None
     amount_b: Decimal | None
     row_ids_a: tuple[str, ...] = ()
     row_ids_b: tuple[str, ...] = ()
+    reason: str | None = None
 
     @property
     def row_ids(self) -> tuple[str, ...]:
@@ -106,6 +109,21 @@ def discrepancy_items(result: MatchResult) -> list[Item]:
         )
         for diff in result.amount_differences
     ]
+    for side, invalid in (("a", result.invalid_a), ("b", result.invalid_b)):
+        items += [
+            Item(
+                id=row.row_id,
+                kind="data_quality",
+                key=tuple(row.key),
+                amount=Decimal(0),
+                amount_a=None,
+                amount_b=None,
+                row_ids_a=(row.row_id,) if side == "a" else (),
+                row_ids_b=(row.row_id,) if side == "b" else (),
+                reason=row.reason,
+            )
+            for row in invalid
+        ]
     return items
 
 

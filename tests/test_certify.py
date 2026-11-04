@@ -9,7 +9,7 @@ from recon_engine.assumptions import AssumptionStore
 from recon_engine.certify import ConservationError, certify, verify_certificate
 from recon_engine.checks import CheckContext, get_check, run_checks
 from recon_engine.match import match
-from recon_engine.models import Certificate, CertificateStatus, MatchSpec
+from recon_engine.models import Assumption, Certificate, CertificateStatus, MatchSpec
 
 NOW = datetime(2026, 11, 4, 12, 0, tzinfo=UTC)
 
@@ -20,10 +20,10 @@ def certified(kind="clean", plan=None, store=None):
     return manifest, ctx, buckets, certify(ctx, buckets, now=NOW)
 
 
-def test_the_clean_fixture_is_reconciled_with_zero_residual():
+def test_the_clean_fixture_balances_but_is_provisional_until_confirmed():
     manifest, _, _, cert = certified()
 
-    assert cert.status == CertificateStatus.RECONCILED
+    assert cert.status == CertificateStatus.PROVISIONAL
     assert cert.residual == 0
     assert cert.residual_items == []
     assert cert.explained == cert.match.gap == Decimal(manifest["expected_gap"])
@@ -61,7 +61,9 @@ def test_confirmed_assumptions_clear_the_flag_on_a_new_certificate():
     second = certify(ctx, buckets, now=NOW)
 
     assert first.unconfirmed_assumptions  # the earlier certificate is unchanged
+    assert first.status == CertificateStatus.PROVISIONAL
     assert second.unconfirmed_assumptions == []
+    assert second.status == CertificateStatus.RECONCILED
     assert second.assumptions_confirmed is True
     assert all(a.confirmed_by == "Jane CFO" for a in second.assumptions)
 
@@ -99,12 +101,17 @@ def test_items_netting_to_zero_still_leave_the_certificate_open():
     assert cert.status == CertificateStatus.OPEN
 
 
-def test_empty_buckets_are_left_off_the_certificate():
+def test_checks_with_no_findings_are_listed_without_their_assumptions():
     plan = [*plan_for("clean", None), ("tax_basis", {"rate": "0.15", "inclusive_side": "b"})]
     _, _, buckets, cert = certified(plan=plan)
 
     assert len(buckets) == 7
     assert len(cert.buckets) == 6
+    [empty] = cert.checks_without_findings
+    assert empty.check_name == "tax_basis"
+    assert empty.parameters == {"rate": "0.15", "inclusive_side": "b"}
+    assert buckets[-1].assumption_ids[0] not in cert.unconfirmed_assumptions
+    assert buckets[-1].assumption_ids[0] not in {a.id for a in cert.assumptions}
 
 
 def test_the_hash_verifies_and_survives_a_json_round_trip():
@@ -170,3 +177,57 @@ def test_assumptions_must_be_in_the_store():
 
     with pytest.raises(ConservationError, match="unknown assumption"):
         certify(detached, buckets, now=NOW)
+
+
+def test_supersedes_is_recorded_and_hashed():
+    _, ctx, buckets, first = certified()
+    second = certify(ctx, buckets, now=NOW, supersedes=first.id)
+
+    assert first.supersedes is None
+    assert second.supersedes == first.id
+    assert second.certificate_hash != first.certificate_hash
+    assert verify_certificate(second)
+
+
+def test_open_items_outrank_unconfirmed_assumptions():
+    _, _, _, cert = certified("messy")
+
+    assert cert.unconfirmed_assumptions
+    assert cert.status == CertificateStatus.OPEN
+
+
+def test_extra_session_assumptions_are_part_of_the_certificate():
+    store = AssumptionStore()
+    _, ctx, buckets, _ = certified(store=store)
+    for assumption in store.all():
+        store.confirm(assumption.id, "Jane CFO", at=NOW)
+    extra = store.propose(
+        Assumption.propose("scope.entity", "AU01", "Only the AU01 entity is in scope.")
+    )
+    cert = certify(ctx, buckets, now=NOW, extra_assumption_ids=[extra.id])
+
+    assert extra.id in cert.unconfirmed_assumptions
+    assert cert.status == CertificateStatus.PROVISIONAL
+
+
+def test_empty_amounts_are_unexplained_data_quality_items():
+    a = make_extract(
+        [("INV-1", "2026-10-03", None, "PAID"), ("INV-2", "2026-10-04", "7", "PAID")], "a"
+    )
+    b = make_extract([("INV-2", "2026-10-04", "7", "PAID")], "b")
+    spec = MatchSpec(
+        extract_a=a.extract.id,
+        extract_b=b.extract.id,
+        key_columns=["invoice_id"],
+        amount_column="amount",
+    )
+    ctx = CheckContext(a=a, b=b, spec=spec, result=match(a, b, spec))
+    cert = certify(ctx, [], now=NOW)
+
+    [item] = cert.residual_items
+    assert item.kind == "data_quality"
+    assert item.amount == 0
+    assert "empty" in item.reason
+    assert cert.residual == 0
+    assert cert.status == CertificateStatus.OPEN
+    assert cert.match.invalid_a_count == 1

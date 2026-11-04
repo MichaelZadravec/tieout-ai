@@ -15,7 +15,7 @@ from recon_engine.assumptions import AssumptionStore
 from recon_engine.certify import certify, verify_certificate
 from recon_engine.checks import CheckContext, ProposedBy, get_check
 from recon_engine.match import match
-from recon_engine.models import Bucket, Certificate, ExtractData, MatchSpec
+from recon_engine.models import Assumption, Bucket, Certificate, ExtractData, MatchSpec
 
 
 class CertificateError(Exception):
@@ -57,7 +57,10 @@ class Workspace:
 
 
 class Session:
-    """One reconciliation. Checks run in order and never reclaim earlier claims."""
+    """One reconciliation. Checks run in order and never reclaim earlier claims.
+
+    Each certificate issued by a session supersedes the one it issued before.
+    """
 
     def __init__(
         self, workspace: Workspace, a: ExtractData, b: ExtractData, spec: MatchSpec
@@ -67,6 +70,8 @@ class Session:
             a=a, b=b, spec=spec, result=match(a, b, spec), assumptions=workspace.assumptions
         )
         self.buckets: list[Bucket] = []
+        self.assumption_ids: list[str] = []
+        self.last_certificate: str | None = None
 
     def run_check(
         self, name: str, params: dict[str, Any], proposed_by: ProposedBy = "ai"
@@ -76,7 +81,28 @@ class Session:
         self.buckets.append(bucket)
         return bucket
 
-    def certify(self) -> Certificate:
-        cert = certify(self.context, self.buckets)
+    def propose_assumption(
+        self, parameter: str, value: Any, description: str, proposed_by: ProposedBy = "ai"
+    ) -> Assumption:
+        """An assumption about the reconciliation as a whole (scope, filters, sources)."""
+        assumption = self.workspace.assumptions.propose(
+            Assumption.propose(parameter, value, description, proposed_by)
+        )
+        if assumption.id not in self.assumption_ids:
+            self.assumption_ids.append(assumption.id)
+        return assumption
+
+    def certify(self, supersedes: str | None = None) -> Certificate:
+        if supersedes is None:
+            supersedes = self.last_certificate
+        else:
+            self.workspace.load_certificate(supersedes)  # must exist and verify
+        cert = certify(
+            self.context,
+            self.buckets,
+            supersedes=supersedes,
+            extra_assumption_ids=self.assumption_ids,
+        )
         self.workspace.save_certificate(cert)
+        self.last_certificate = cert.id
         return cert

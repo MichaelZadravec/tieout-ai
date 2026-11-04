@@ -53,7 +53,7 @@
       ]
     }
   },
-  "expected_gap": "6946.34",
+  "expected_gap": "6882.34",
   "period": {
     "end": "2026-10-31",
     "start": "2026-10-01"
@@ -104,7 +104,7 @@
     ]
   ],
   "residual": {
-    "amount": "1380.22",
+    "amount": "1316.22",
     "items": [
       {
         "amount": "340.00",
@@ -177,6 +177,18 @@
         "key": "INV-20191",
         "kind": "difference",
         "reason": "repeated invoice on different dates, not a copy"
+      },
+      {
+        "amount": "0.00",
+        "key": "INV-20192",
+        "kind": "data_quality",
+        "reason": "dashboard amount is empty"
+      },
+      {
+        "amount": "-64.00",
+        "key": "INV-20192",
+        "kind": "only_b",
+        "reason": "its dashboard row has no amount"
       }
     ]
   }

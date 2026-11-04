@@ -23,6 +23,7 @@ from recon_engine.models import (
     Bucket,
     Certificate,
     CertificateStatus,
+    CheckRun,
     MatchSummary,
     ResidualItem,
 )
@@ -89,10 +90,29 @@ def _check_conservation(ctx: CheckContext, buckets: Sequence[Bucket]) -> set[str
 
 
 def certify(
-    ctx: CheckContext, buckets: Sequence[Bucket], *, now: datetime | None = None
+    ctx: CheckContext,
+    buckets: Sequence[Bucket],
+    *,
+    now: datetime | None = None,
+    supersedes: str | None = None,
+    extra_assumption_ids: Sequence[str] = (),
 ) -> Certificate:
-    """Check conservation and issue a certificate. Empty buckets are left off it."""
+    """Check conservation and issue a certificate.
+
+    Empty buckets become `checks_without_findings`; their assumptions are not
+    carried, since nothing on the certificate depends on them. `extra_assumption_ids`
+    are assumptions proposed for the reconciliation as a whole (e.g. scope).
+    """
     kept = [bucket for bucket in buckets if bucket.item_ids]
+    empty = [
+        CheckRun(
+            check_name=bucket.check_name,
+            check_version=bucket.check_version,
+            parameters=bucket.parameters,
+        )
+        for bucket in buckets
+        if not bucket.item_ids
+    ]
     claimed = _check_conservation(ctx, kept)
 
     result = ctx.result
@@ -102,11 +122,20 @@ def certify(
     if sum((item.amount for item in open_items), Decimal(0)) != residual:
         raise ConservationError("buckets plus residual do not equal the gap")
 
-    assumption_ids = list(dict.fromkeys(i for b in kept for i in b.assumption_ids))
-    assumptions = ctx.assumptions.get_many(assumption_ids)
-    status = (
-        CertificateStatus.RECONCILED if residual == 0 and not open_items else CertificateStatus.OPEN
+    for assumption_id in extra_assumption_ids:
+        if assumption_id not in ctx.assumptions:
+            raise ConservationError(f"unknown assumption {assumption_id}")
+    assumption_ids = list(
+        dict.fromkeys([*(i for b in kept for i in b.assumption_ids), *extra_assumption_ids])
     )
+    assumptions = ctx.assumptions.get_many(assumption_ids)
+    unconfirmed = [a.id for a in assumptions if not a.confirmed]
+    if open_items or residual != 0:
+        status = CertificateStatus.OPEN
+    elif unconfirmed:
+        status = CertificateStatus.PROVISIONAL
+    else:
+        status = CertificateStatus.RECONCILED
 
     draft = Certificate(
         id="",
@@ -122,11 +151,14 @@ def certify(
             difference_count=len(result.amount_differences),
             excluded_a_count=len(result.excluded_a),
             excluded_b_count=len(result.excluded_b),
+            invalid_a_count=len(result.invalid_a),
+            invalid_b_count=len(result.invalid_b),
             total_a=result.total_a,
             total_b=result.total_b,
             gap=result.gap,
         ),
         buckets=kept,
+        checks_without_findings=empty,
         explained=explained,
         residual=residual,
         residual_items=[
@@ -136,11 +168,13 @@ def certify(
                 key=list(item.key),
                 amount=item.amount,
                 row_ids=list(item.row_ids),
+                reason=item.reason,
             )
             for item in open_items
         ],
         assumptions=assumptions,
-        unconfirmed_assumptions=[a.id for a in assumptions if not a.confirmed],
+        unconfirmed_assumptions=unconfirmed,
+        supersedes=supersedes,
         certificate_hash="",
     )
     digest = certificate_hash(draft)

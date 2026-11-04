@@ -4,7 +4,8 @@ Rows are grouped by key on each side and their amounts summed per key. A key on
 both sides with equal sums is matched; with unequal sums it is an amount
 difference; on one side only, each of its rows is unmatched. Rows with any
 missing key column never match. Nothing is dropped silently: rows outside the
-period are listed as excluded.
+period are listed as excluded, and rows with an empty amount are listed as
+invalid (a data-quality problem) and left out of the totals.
 """
 
 from __future__ import annotations
@@ -18,6 +19,7 @@ from recon_engine.hashing import canonical_value, to_decimal
 from recon_engine.models import (
     AmountDifference,
     ExtractData,
+    InvalidRow,
     MatchResult,
     MatchSpec,
     Period,
@@ -37,6 +39,7 @@ class _Side:
     groups: dict[_Key, list[tuple[str, Decimal]]] = field(default_factory=dict)
     unkeyed: list[UnmatchedRow] = field(default_factory=list)
     excluded: list[str] = field(default_factory=list)
+    invalid: list[InvalidRow] = field(default_factory=list)
     total: Decimal = Decimal(0)
 
 
@@ -86,11 +89,14 @@ def _prepare(
             raise MatchError(
                 f"{where}: amount column '{amount_column}' value {raw_amount!r} is not a number"
             ) from None
+        key = tuple(canonical_value(v) for v in row[: len(keys)])
         if amount is None:
-            raise MatchError(f"{where}: amount column '{amount_column}' is empty")
+            side.invalid.append(
+                InvalidRow(row_id=rid, key=list(key), reason=f"amount is empty ({amount_column})")
+            )
+            continue
         side.total += amount
 
-        key = tuple(canonical_value(v) for v in row[: len(keys)])
         if any(part is None for part in key):
             side.unkeyed.append(UnmatchedRow(row_id=rid, key=list(key), amount=amount))
         else:
@@ -153,6 +159,8 @@ def match(a: ExtractData, b: ExtractData, spec: MatchSpec) -> MatchResult:
         amount_differences=differences,
         excluded_a=side_a.excluded,
         excluded_b=side_b.excluded,
+        invalid_a=side_a.invalid,
+        invalid_b=side_b.invalid,
         total_a=side_a.total,
         total_b=side_b.total,
         gap=side_a.total - side_b.total,

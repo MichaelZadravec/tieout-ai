@@ -124,6 +124,14 @@ class UnmatchedRow(_Model):
     amount: Decimal
 
 
+class InvalidRow(_Model):
+    """A row that could not be used, e.g. its amount is empty. Never silently dropped."""
+
+    row_id: str
+    key: Key
+    reason: str
+
+
 class AmountDifference(_Model):
     """A key present on both sides whose amounts disagree. difference = amount_a - amount_b."""
 
@@ -147,6 +155,8 @@ class MatchResult(_Model):
     amount_differences: list[AmountDifference]
     excluded_a: list[str]
     excluded_b: list[str]
+    invalid_a: list[InvalidRow] = Field(default_factory=list)
+    invalid_b: list[InvalidRow] = Field(default_factory=list)
     total_a: Decimal
     total_b: Decimal
     gap: Decimal
@@ -214,8 +224,9 @@ class Bucket(_Model):
 
 
 class CertificateStatus(StrEnum):
-    RECONCILED = "RECONCILED"
-    OPEN = "OPEN"
+    RECONCILED = "RECONCILED"  # every item explained and every assumption confirmed
+    PROVISIONAL = "PROVISIONAL"  # every item explained, but some assumptions unconfirmed
+    OPEN = "OPEN"  # some items are unexplained
 
 
 class MatchSummary(_Model):
@@ -225,6 +236,8 @@ class MatchSummary(_Model):
     difference_count: int
     excluded_a_count: int
     excluded_b_count: int
+    invalid_a_count: int = 0
+    invalid_b_count: int = 0
     total_a: Decimal
     total_b: Decimal
     gap: Decimal
@@ -234,20 +247,32 @@ class ResidualItem(_Model):
     """A discrepancy no bucket explains. `amount` is its contribution to the gap."""
 
     id: str
-    kind: Literal["only_a", "only_b", "difference"]
+    kind: Literal["only_a", "only_b", "difference", "data_quality"]
     key: Key
     amount: Decimal
     row_ids: list[str]
+    reason: str | None = None
+
+
+class CheckRun(_Model):
+    """A check that ran and found nothing. Recorded so reviewers see what was tested."""
+
+    check_name: str
+    check_version: str
+    parameters: dict[str, Any]
 
 
 class Certificate(_Model):
-    """The engine's signed-off record of one reconciliation.
+    """The engine's record of one reconciliation.
 
-    RECONCILED means every discrepancy item is explained, so the residual is zero.
-    Anything else is OPEN. Assumptions are a snapshot of their state when the
-    certificate was issued; `unconfirmed_assumptions` flags the ones no human has
-    confirmed. `certificate_hash` covers every other field except `id`, which is
-    derived from the hash.
+    Status: RECONCILED when every discrepancy item is explained and every assumption
+    behind the explanations is confirmed by a person; PROVISIONAL when everything is
+    explained but some assumptions are unconfirmed; OPEN when anything is unexplained.
+
+    Assumptions are a snapshot of their state when the certificate was issued.
+    `supersedes` names the earlier certificate this one replaces. Checks that ran
+    and found nothing are listed in `checks_without_findings`, without assumptions.
+    `certificate_hash` covers every field except `id`, which is derived from it.
     """
 
     id: str
@@ -258,11 +283,13 @@ class Certificate(_Model):
     match_spec: MatchSpec
     match: MatchSummary
     buckets: list[Bucket]
+    checks_without_findings: list[CheckRun] = Field(default_factory=list)
     explained: Decimal
     residual: Decimal
     residual_items: list[ResidualItem]
     assumptions: list[Assumption]
     unconfirmed_assumptions: list[str]
+    supersedes: str | None = None
     certificate_hash: str
 
     @property

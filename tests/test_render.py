@@ -28,7 +28,7 @@ def test_html_headline_shows_status_gap_and_residual():
     cert, html = html_for("clean")
 
     assert "<!doctype html>" in html.lower()
-    assert "RECONCILED" in html
+    assert "PROVISIONAL" in html
     assert "$29,072.00" in html
     assert cert.id in html
     assert cert.certificate_hash in html
@@ -57,6 +57,8 @@ def test_fully_confirmed_certificate_says_so():
 
     assert "Unconfirmed assumptions" not in html
     assert "All assumptions confirmed" in html
+    assert "RECONCILED" in html
+    assert "PROVISIONAL" not in html
     assert "Jane CFO" in html
 
 
@@ -65,7 +67,7 @@ def test_open_certificate_shows_the_unexplained_items():
 
     assert "OPEN" in html
     assert "Unexplained" in html
-    assert "$1,380.22" in html
+    assert f"${cert.residual:,.2f}" in html
     assert "INV-20" in html  # residual items are listed by key
     assert "(blank)" in html  # the row with no invoice number
     assert any(f"&quot;{r['key']}&quot;" in html for r in manifest_keys_with_spaces())
@@ -98,3 +100,43 @@ def manifest_keys_with_spaces():
 
     manifest = json.loads((FIXTURE_DATA / "manifest_messy.json").read_text(encoding="utf-8"))
     return [r for r in manifest["residual"]["items"] if r["key"] and r["key"] != r["key"].strip()]
+
+
+def test_checks_with_no_findings_get_a_compact_line_and_no_warning():
+    store = AssumptionStore()
+    manifest, ctx = fixture_context("clean", store)
+    plan = [*plan_for("clean", manifest), ("duplicates", {"side": "b"})]
+    buckets = run_checks(ctx, plan)
+    used = {i for b in buckets[:-1] for i in b.assumption_ids}
+    for assumption_id in used:
+        store.confirm(assumption_id, "Jane CFO", at=NOW)
+    unused = [i for i in buckets[-1].assumption_ids if i not in used]
+    html = render_html(certify(ctx, buckets, now=NOW))
+
+    assert unused  # the empty bucket's own assumption was never confirmed...
+    assert "Checks with no findings" in html
+    assert "side=b" in html
+    assert "Unconfirmed assumptions" not in html  # ...and raises no warning
+    assert all(i not in html for i in unused)
+    assert "RECONCILED" in html
+
+
+def test_data_quality_items_are_labelled():
+    frame = pd.DataFrame(
+        [["INV-1", "2026-10-03", None, "PAID"], ["INV-2", "2026-10-03", "4", "PAID"]],
+        columns=COLUMNS,
+        dtype=object,
+    )
+    a = build_extract("a", "FILE a.csv", frame)
+    b = build_extract("b", "FILE b.csv", frame.iloc[1:])
+    spec = MatchSpec(
+        extract_a=a.extract.id,
+        extract_b=b.extract.id,
+        key_columns=["invoice_id"],
+        amount_column="amount",
+    )
+    ctx = CheckContext(a=a, b=b, spec=spec, result=match(a, b, spec))
+    html = render_html(certify(ctx, [], now=NOW))
+
+    assert "Data quality" in html
+    assert "amount is empty" in html

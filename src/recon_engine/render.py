@@ -8,7 +8,13 @@ from __future__ import annotations
 from decimal import Decimal
 from html import escape
 
-from recon_engine.models import Assumption, Certificate, CertificateStatus, Extract
+from recon_engine.models import (
+    Assumption,
+    Certificate,
+    CertificateStatus,
+    Extract,
+    ResidualItem,
+)
 
 MAX_RESIDUAL_ROWS = 200
 MINUS = chr(0x2212)  # a true minus sign, not a hyphen
@@ -17,6 +23,13 @@ _KIND = {
     "only_a": "Only in A",
     "only_b": "Only in B",
     "difference": "Amounts differ",
+    "data_quality": "Data quality",
+}
+
+_BADGE = {
+    CertificateStatus.RECONCILED: "ok",
+    CertificateStatus.PROVISIONAL: "prov",
+    CertificateStatus.OPEN: "open",
 }
 
 _CSS = """
@@ -33,6 +46,8 @@ h2 { font-size: 16px; margin: 32px 0 10px; padding-bottom: 6px; border-bottom: 1
   letter-spacing: .04em; font-size: 13px; margin-left: 8px; vertical-align: middle; }
 .badge.ok { background: var(--ok-bg); color: var(--ok); }
 .badge.open { background: var(--bad-bg); color: var(--bad); }
+.badge.prov { background: var(--warn-bg); color: var(--warn); }
+.quiet { color: var(--muted); font-size: 13px; margin: 10px 0 0; }
 .banner { margin: 20px 0; padding: 12px 16px; border-radius: 8px; }
 .banner.warn { background: var(--warn-bg); color: var(--warn); border: 1px solid #f0c98a; }
 .banner.ok { background: var(--ok-bg); color: var(--ok); border: 1px solid #b7dcc5; }
@@ -90,6 +105,28 @@ def _assumption_state(a: Assumption) -> str:
     return '<span class="state unconfirmed">Unconfirmed</span>'
 
 
+def _where(item: ResidualItem) -> str:
+    label = _KIND[item.kind]
+    return f"{label}: {_e(item.reason)}" if item.reason else label
+
+
+def _params(parameters: dict) -> str:
+    def show(value: object) -> str:
+        return ", ".join(map(str, value)) if isinstance(value, list) else str(value)
+
+    return ", ".join(f"{k}={show(v)}" for k, v in parameters.items() if v is not None)
+
+
+def _no_findings(cert: Certificate) -> str:
+    if not cert.checks_without_findings:
+        return ""
+    runs = "; ".join(
+        f"<code>{_e(run.check_name)}</code> v{_e(run.check_version)} ({_e(_params(run.parameters))})"
+        for run in cert.checks_without_findings
+    )
+    return f'<p class="quiet"><strong>Checks with no findings:</strong> {runs}</p>'
+
+
 def _source(label: str, extract: Extract) -> str:
     totals = ", ".join(f"{_e(k)} = {_e(money(v))}" for k, v in extract.column_totals.items())
     return f"""
@@ -107,7 +144,6 @@ def _source(label: str, extract: Extract) -> str:
 
 
 def render_html(cert: Certificate) -> str:
-    reconciled = cert.status == CertificateStatus.RECONCILED
     spec = cert.match_spec
     period = (
         f"{spec.period.start.isoformat()} to {spec.period.end.isoformat()}"
@@ -119,10 +155,16 @@ def render_html(cert: Certificate) -> str:
 
     if unconfirmed:
         plural = "assumption has" if unconfirmed == 1 else "assumptions have"
+        provisional = (
+            "The gap is fully explained, so this certificate is <strong>provisional</strong>: "
+            if cert.status == CertificateStatus.PROVISIONAL
+            else ""
+        )
         banner = (
             '<div class="banner warn"><strong>Unconfirmed assumptions.</strong> '
-            f"{unconfirmed} {plural} not been confirmed by a person. The explanations below "
-            "depend on them. Confirm with <code>recon confirm &lt;id&gt;</code> and re-issue."
+            f"{provisional}{unconfirmed} {plural} not been confirmed by a person. The "
+            "explanations below depend on them. A person confirms each one with "
+            "<code>recon confirm &lt;id&gt;</code>, then the certificate is re-issued."
             "</div>"
         )
     elif cert.assumptions:
@@ -152,7 +194,7 @@ def render_html(cert: Certificate) -> str:
     <tr class="total"><td>Gap (A &minus; B)</td><td class="num"></td>
       <td class="num">{money(cert.match.gap)}</td></tr>
   </tbody>
-</table>"""
+</table>{_no_findings(cert)}"""
 
     assumption_rows = "".join(
         f"""<tr><td><code>{_e(a.id)}</code></td><td>{_e(a.description)}
@@ -172,8 +214,8 @@ def render_html(cert: Certificate) -> str:
     if cert.residual_items:
         shown = cert.residual_items[:MAX_RESIDUAL_ROWS]
         rows = "".join(
-            f"""<tr><td>{_e(_key(i.key))}</td><td>{_KIND[i.kind]}</td>
-  <td class="num">{money(i.amount)}</td></tr>"""
+            f"""<tr><td>{_e(_key(i.key))}</td><td>{_where(i)}</td>
+  <td class="num">{"amount missing" if i.kind == "data_quality" else money(i.amount)}</td></tr>"""
             for i in shown
         )
         more = (
@@ -186,11 +228,8 @@ def render_html(cert: Certificate) -> str:
 <table><thead><tr><th>Key</th><th>Where</th><th class="num">Amount</th></tr></thead>
 <tbody>{rows}</tbody></table>{more}"""
 
-    status_badge = (
-        '<span class="badge ok">RECONCILED</span>'
-        if reconciled
-        else '<span class="badge open">OPEN</span>'
-    )
+    status_badge = f'<span class="badge {_BADGE[cert.status]}">{cert.status.value}</span>'
+    supersedes = f" · supersedes {_e(cert.supersedes)}" if cert.supersedes else ""
     residual_tile = "residual" + ("" if cert.residual == 0 else " nonzero")
     keys_b = ", ".join(spec.keys_b)
     return f"""<!doctype html>
@@ -204,7 +243,7 @@ def render_html(cert: Certificate) -> str:
 <body>
 <main>
   <h1>Reconciliation certificate {status_badge}</h1>
-  <div class="meta">{_e(cert.id)} · issued {_e(cert.created_at.isoformat())} · period {_e(period)}</div>
+  <div class="meta">{_e(cert.id)} · issued {_e(cert.created_at.isoformat())} · period {_e(period)}{supersedes}</div>
   {banner}
   <div class="tiles">
     <div class="tile"><div class="label">Side A total</div><div class="value">{money(cert.match.total_a)}</div></div>
@@ -230,6 +269,7 @@ def render_html(cert: Certificate) -> str:
     <dt>Dates</dt><dd>A: {_e(spec.date_column or "none")} · B: {_e(spec.date_b or "none")}</dd>
     <dt>Matched keys</dt><dd>{cert.match.matched_count:,}</dd>
     <dt>Outside period</dt><dd>A: {cert.match.excluded_a_count:,} · B: {cert.match.excluded_b_count:,} rows</dd>
+    <dt>Unusable rows</dt><dd>A: {cert.match.invalid_a_count:,} · B: {cert.match.invalid_b_count:,} (listed as data quality)</dd>
   </dl>
 
   <footer>

@@ -23,6 +23,8 @@ Must stay unexplained:
 - 2 GST pairs that are 1 cent off the correctly rounded amount
 - 1 invoice 1 cent apart for no stated reason
 - 1 repeated invoice whose copies have different appointment dates (not a duplicate)
+- 1 dashboard row with an empty amount: a data-quality item, so Xero's row for that
+  invoice is unmatched
 
 Usage: python fixtures/generate_messy.py [OUT_DIR]   (default: fixtures/data)
 """
@@ -203,6 +205,13 @@ def generate_messy(out_dir: Path) -> dict:
     dash(key, (first + timedelta(days=7)).isoformat(), _money(amount))
     xero.append([key, first.isoformat(), _money(amount), "PAID", "ACCREC"])
     unexplained(key, "difference", amount, "repeated invoice on different dates, not a copy")
+
+    # Residual: the dashboard row has no amount, so it cannot be used at all.
+    key, when = number(), day().isoformat()
+    dash(key, when, None)
+    xero.append([key, when, "64.00", "PAID", "ACCREC"])
+    unexplained(key, "data_quality", Decimal(0), "dashboard amount is empty")
+    unexplained(key, "only_b", Decimal(-64), "its dashboard row has no amount")
 
     # Claimable: credit note with opposite signs.
     key, when, amount = "CN-901", day().isoformat(), Decimal(95)

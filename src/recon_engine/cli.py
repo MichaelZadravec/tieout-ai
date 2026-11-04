@@ -1,12 +1,15 @@
 """Command-line interface. Human-only actions (confirming assumptions) live here.
 
-The MCP server never exposes `confirm`, so only a person at this CLI can confirm
-an assumption.
+The MCP server never exposes `confirm`. On top of that, `recon confirm` only runs
+in an interactive terminal and asks the person to retype a random code, so it
+cannot be driven by piped input, a script, or an AI agent's shell tool.
 """
 
 from __future__ import annotations
 
 import getpass
+import secrets
+import sys
 from pathlib import Path
 from typing import Annotated
 
@@ -27,6 +30,18 @@ app.add_typer(cert_app, name="cert")
 
 def _workspace(ctx: typer.Context) -> Workspace:
     return ctx.obj["workspace"]
+
+
+# No 0/O, 1/I/L: easy to read back and retype.
+_CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
+
+
+def _stdin_is_tty() -> bool:
+    return sys.stdin.isatty()
+
+
+def _confirmation_code() -> str:
+    return "".join(secrets.choice(_CODE_ALPHABET) for _ in range(6))
 
 
 def _fail(message: str) -> None:
@@ -61,17 +76,34 @@ def confirm(
         typer.Option("--by", help="Name of the person confirming (default: your login name)."),
     ] = None,
 ) -> None:
-    """Confirm an assumption. This is the only way an assumption becomes confirmed."""
+    """Confirm an assumption. Interactive only: you retype a code to prove you are here."""
+    if not _stdin_is_tty():
+        _fail(
+            "recon confirm must be run by a person in an interactive terminal; "
+            "it does not accept piped or scripted input."
+        )
+        return
     store = _workspace(ctx).assumptions
     try:
         assumption = store.get(assumption_id)
-        if assumption.confirmed:
-            typer.echo(f"Already confirmed by {assumption.confirmed_by}: {assumption.id}")
-            return
-        confirmed = store.confirm(assumption_id, by or getpass.getuser())
     except AssumptionError as error:
         _fail(str(error))
         return
+    if assumption.confirmed:
+        typer.echo(f"Already confirmed by {assumption.confirmed_by}: {assumption.id}")
+        return
+
+    typer.echo(f"Assumption {assumption.id} (proposed by {assumption.proposed_by}):")
+    typer.echo(f"  {assumption.description}")
+    typer.echo(f"  {assumption.parameter} = {assumption.value}")
+    code = _confirmation_code()
+    typed = typer.prompt(
+        f"Type {code} to confirm (anything else cancels)", default="", show_default=False
+    )
+    if typed.strip().upper() != code:
+        _fail("The code did not match; nothing was confirmed.")
+        return
+    confirmed = store.confirm(assumption_id, by or getpass.getuser())
     typer.echo(f"Confirmed {confirmed.id} by {confirmed.confirmed_by}")
     typer.echo(f"  {confirmed.description}")
     typer.echo("Re-issue any certificate that relies on it to record the confirmation.")
@@ -128,6 +160,14 @@ def show_certificate(
         label = f"{bucket.check_name} ({bucket.row_count} rows)"
         out(f"    {label:<30} {money(bucket.amount):>16}")
     out(f"  Unexplained    {money(cert.residual):>16}  ({len(cert.residual_items)} items)")
+    quality = sum(1 for i in cert.residual_items if i.kind == "data_quality")
+    if quality:
+        out(f"    of which {quality} are data-quality items (e.g. empty amounts)")
+    if cert.checks_without_findings:
+        runs = ", ".join(r.check_name for r in cert.checks_without_findings)
+        out(f"  Checks with no findings: {runs}")
+    if cert.supersedes:
+        out(f"  Supersedes {cert.supersedes}")
     out("")
 
     if cert.unconfirmed_assumptions:
@@ -145,9 +185,13 @@ def show_certificate(
                 f"{current.get(a.id).confirmed_by}; re-issue to record it)"
             )
 
-    if cert.status == CertificateStatus.OPEN and cert.residual_items:
+    if cert.status == CertificateStatus.OPEN:
         out("")
         out("Status is OPEN: some differences are not explained.")
+    elif cert.status == CertificateStatus.PROVISIONAL:
+        out("")
+        out("Status is PROVISIONAL: everything is explained, but it rests on unconfirmed")
+        out("assumptions. It becomes RECONCILED only when re-issued after a person confirms them.")
 
     if html is not None:
         html.write_text(render_html(cert), encoding="utf-8")
