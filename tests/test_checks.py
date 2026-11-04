@@ -3,6 +3,7 @@ from typing import ClassVar
 
 import pytest
 from pydantic import BaseModel
+from support import CLEAN_PLAN as PLAN
 from support import make_extract
 
 from fixtures.generate import generate
@@ -21,27 +22,6 @@ from recon_engine.match import match
 from recon_engine.models import Connection, ConnectionType, MatchSpec, Period
 
 OCTOBER = Period(start="2026-10-01", end="2026-10-31")
-
-# The hypotheses an AI would propose for the fixture pair, one per injected issue.
-PLAN = {
-    "timing": ("timing", {"max_shift_days": 31}),
-    "status_filter": (
-        "status_filter",
-        {"side": "a", "status_column": "status", "statuses": ["VOIDED"]},
-    ),
-    "tax_basis": ("tax_basis", {"rate": "0.10", "inclusive_side": "b"}),
-    "duplicates": ("duplicates", {"side": "a"}),
-    "sign_flip": ("sign_credit", {"mode": "sign_flip"}),
-    "missing_credit_notes": (
-        "sign_credit",
-        {
-            "mode": "missing_credit_notes",
-            "side": "b",
-            "type_column": "Type",
-            "credit_types": ["ACCRECCREDIT"],
-        },
-    ),
-}
 
 
 @pytest.fixture(scope="module")
@@ -250,7 +230,7 @@ def test_buckets_record_parameters_and_assumptions(ctx):
     bucket = get_check("status_filter").run(ctx, PLAN["status_filter"][1])
 
     assert bucket.parameters == {"side": "a", "status_column": "status", "statuses": ["VOIDED"]}
-    [assumption] = bucket.assumptions
+    [assumption] = ctx.assumptions.get_many(bucket.assumption_ids)
     assert assumption.parameter == "status_filter.statuses"
     assert assumption.value == ["VOIDED"]
     assert assumption.proposed_by == "ai"
@@ -259,10 +239,11 @@ def test_buckets_record_parameters_and_assumptions(ctx):
 
 
 def test_assumption_ids_are_deterministic(ctx):
-    first = get_check("tax_basis").run(ctx, PLAN["tax_basis"][1]).assumptions
-    second = get_check("tax_basis").run(ctx, PLAN["tax_basis"][1]).assumptions
+    first = get_check("tax_basis").run(ctx, PLAN["tax_basis"][1]).assumption_ids
+    second = get_check("tax_basis").run(ctx, PLAN["tax_basis"][1]).assumption_ids
 
-    assert [a.id for a in first] == [a.id for a in second]
+    assert first == second
+    assert all(i in ctx.assumptions for i in first)
 
 
 def test_list_checks_describes_every_check():
@@ -310,3 +291,63 @@ def test_register_rejects_duplicate_names():
 
             def prove(self, ctx, items, params):
                 return []
+
+
+LOADED = ["invoice_id", "invoice_date", "amount", "status", "load_id"]
+
+
+def near_duplicate_ctx():
+    a = make_extract(
+        [
+            ("INV-1", "2026-10-03", "90.00", "PAID", "load-1"),
+            ("INV-1", "2026-10-03", "90.00", "PAID", "load-2"),
+        ],
+        "a",
+        columns=LOADED,
+    )
+    b = make_extract([("INV-1", "2026-10-03", "90.00", "PAID")], "b")
+    spec = MatchSpec(
+        extract_a=a.extract.id,
+        extract_b=b.extract.id,
+        key_columns=["invoice_id"],
+        amount_column="amount",
+    )
+    return CheckContext(a=a, b=b, spec=spec, result=match(a, b, spec))
+
+
+def test_duplicates_compare_every_column_by_default():
+    ctx = near_duplicate_ctx()
+    bucket = get_check("duplicates").run(ctx, {"side": "a"})
+
+    assert bucket.item_ids == []
+    [basis] = [
+        a for a in ctx.assumptions.get_many(bucket.assumption_ids) if "compare" in a.parameter
+    ]
+    assert basis.value == LOADED
+
+
+def test_duplicates_compare_columns_ignores_columns_left_out():
+    ctx = near_duplicate_ctx()
+    compare = ["invoice_id", "invoice_date", "amount", "status"]
+    bucket = get_check("duplicates").run(ctx, {"side": "a", "compare_columns": compare})
+
+    assert bucket.amount == Decimal("90.00")
+    [basis] = [
+        a for a in ctx.assumptions.get_many(bucket.assumption_ids) if "compare" in a.parameter
+    ]
+    assert basis.parameter == "duplicates.compare_columns"
+    assert basis.value == compare
+    assert "load_id" in basis.description
+
+
+@pytest.mark.parametrize(
+    ("compare", "message"),
+    [
+        (["invoice_id", "status"], "must include the amount column 'amount'"),
+        (["amount", "nope"], "has no column 'nope'"),
+        ([], "at least 1"),
+    ],
+)
+def test_duplicates_compare_columns_guardrails(compare, message):
+    with pytest.raises(CheckParameterError, match=message):
+        get_check("duplicates").run(near_duplicate_ctx(), {"side": "a", "compare_columns": compare})

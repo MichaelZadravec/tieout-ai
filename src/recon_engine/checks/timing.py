@@ -85,7 +85,7 @@ class TimingCheck(Check):
                         break
         return claims
 
-    def assumptions(
+    def propose_assumptions(
         self, ctx: CheckContext, params: TimingParams, proposed_by: ProposedBy
     ) -> list[Assumption]:
         days = params.max_shift_days

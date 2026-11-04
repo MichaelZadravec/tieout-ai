@@ -22,6 +22,7 @@ from typing import Any, ClassVar, Literal
 
 from pydantic import BaseModel, ConfigDict, ValidationError
 
+from recon_engine.assumptions import AssumptionStore
 from recon_engine.hashing import canonical_json
 from recon_engine.models import Assumption, Bucket, ExtractData, MatchResult, MatchSpec
 
@@ -110,13 +111,18 @@ def discrepancy_items(result: MatchResult) -> list[Item]:
 
 @dataclass(frozen=True)
 class CheckContext:
-    """What a check may read: both extracts, the spec, the match and what is already claimed."""
+    """What a check may read: both extracts, the spec, the match and what is already claimed.
+
+    Assumptions a check proposes go into `assumptions`, shared by every context
+    derived from this one.
+    """
 
     a: ExtractData
     b: ExtractData
     spec: MatchSpec
     result: MatchResult
     claimed: frozenset[str] = frozenset()
+    assumptions: AssumptionStore = field(default_factory=AssumptionStore, compare=False)
     items: list[Item] = field(init=False, repr=False)
     _index: dict[str, Item] = field(init=False, repr=False)
 
@@ -225,14 +231,17 @@ class Check(ABC):
             evidence_row_ids=evidence,
             amount=sum((claim.item.amount for claim in claims), Decimal(0)),
             row_count=len(row_ids),
-            assumptions=self.assumptions(ctx, validated, proposed_by),
+            assumption_ids=[
+                ctx.assumptions.propose(a).id
+                for a in self.propose_assumptions(ctx, validated, proposed_by)
+            ],
         )
 
     @abstractmethod
     def prove(self, ctx: CheckContext, items: list[Item], params: Any) -> Iterable[Claim | Item]:
         """Return the open items this hypothesis proves. Return nothing if it is wrong."""
 
-    def assumptions(
+    def propose_assumptions(
         self, ctx: CheckContext, params: Any, proposed_by: ProposedBy
     ) -> list[Assumption]:
         return []

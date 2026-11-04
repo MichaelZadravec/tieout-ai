@@ -1,4 +1,4 @@
-"""Core data model. Phase 3 adds Certificate here."""
+"""Core data model."""
 
 from __future__ import annotations
 
@@ -189,6 +189,8 @@ class Assumption(_Model):
 class Bucket(_Model):
     """What one check proved: the discrepancy items it claims and their summed amount.
 
+    Assumptions are referenced by ID; their state lives in the AssumptionStore.
+
     `amount` is the bucket's contribution to the gap (A minus B). `row_ids` are the
     rows behind the claimed items; `evidence_row_ids` are rows the check read as
     proof without claiming them (for example a timing counterpart outside the period).
@@ -202,10 +204,67 @@ class Bucket(_Model):
     evidence_row_ids: list[str]
     amount: Decimal
     row_count: int
-    assumptions: list[Assumption]
+    assumption_ids: list[str]
 
     @model_validator(mode="after")
     def _counted(self) -> Bucket:
         if self.row_count != len(self.row_ids):
             raise ValueError("row_count must equal the number of row_ids")
         return self
+
+
+class CertificateStatus(StrEnum):
+    RECONCILED = "RECONCILED"
+    OPEN = "OPEN"
+
+
+class MatchSummary(_Model):
+    matched_count: int
+    only_a_count: int
+    only_b_count: int
+    difference_count: int
+    excluded_a_count: int
+    excluded_b_count: int
+    total_a: Decimal
+    total_b: Decimal
+    gap: Decimal
+
+
+class ResidualItem(_Model):
+    """A discrepancy no bucket explains. `amount` is its contribution to the gap."""
+
+    id: str
+    kind: Literal["only_a", "only_b", "difference"]
+    key: Key
+    amount: Decimal
+    row_ids: list[str]
+
+
+class Certificate(_Model):
+    """The engine's signed-off record of one reconciliation.
+
+    RECONCILED means every discrepancy item is explained, so the residual is zero.
+    Anything else is OPEN. Assumptions are a snapshot of their state when the
+    certificate was issued; `unconfirmed_assumptions` flags the ones no human has
+    confirmed. `certificate_hash` covers every other field except `id`, which is
+    derived from the hash.
+    """
+
+    id: str
+    engine_version: str
+    status: CertificateStatus
+    created_at: datetime
+    extracts: list[Extract]
+    match_spec: MatchSpec
+    match: MatchSummary
+    buckets: list[Bucket]
+    explained: Decimal
+    residual: Decimal
+    residual_items: list[ResidualItem]
+    assumptions: list[Assumption]
+    unconfirmed_assumptions: list[str]
+    certificate_hash: str
+
+    @property
+    def assumptions_confirmed(self) -> bool:
+        return not self.unconfirmed_assumptions

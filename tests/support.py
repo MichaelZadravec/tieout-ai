@@ -1,5 +1,6 @@
 """Shared test data and helpers."""
 
+import json
 import sqlite3
 from contextlib import closing
 from decimal import Decimal
@@ -29,3 +30,82 @@ def make_extract(rows, connection_id="test", columns=COLUMNS) -> ExtractData:
 def count_rows(db_path: Path) -> int:
     with closing(sqlite3.connect(db_path)) as db:
         return db.execute("SELECT COUNT(*) FROM invoices").fetchone()[0]
+
+
+FIXTURE_DATA = Path(__file__).parent.parent / "fixtures" / "data"
+FIXTURE_FILES = {
+    "clean": ("dashboard_oct2026.csv", "xero_oct_nov2026.csv", "manifest.json"),
+    "messy": ("dashboard_messy_oct2026.csv", "xero_messy_oct_nov2026.csv", "manifest_messy.json"),
+}
+
+# The hypotheses an AI would propose for the clean fixture pair, one per injected issue.
+CLEAN_PLAN = {
+    "timing": ("timing", {"max_shift_days": 31}),
+    "status_filter": (
+        "status_filter",
+        {"side": "a", "status_column": "status", "statuses": ["VOIDED"]},
+    ),
+    "tax_basis": ("tax_basis", {"rate": "0.10", "inclusive_side": "b"}),
+    "duplicates": ("duplicates", {"side": "a"}),
+    "sign_flip": ("sign_credit", {"mode": "sign_flip"}),
+    "missing_credit_notes": (
+        "sign_credit",
+        {
+            "mode": "missing_credit_notes",
+            "side": "b",
+            "type_column": "Type",
+            "credit_types": ["ACCRECCREDIT"],
+        },
+    ),
+}
+
+
+def fixture_extracts(kind: str = "clean"):
+    """Load a committed fixture pair: (manifest, extract A, extract B, MatchSpec)."""
+    from recon_engine.connectors.files import FileConnector
+    from recon_engine.models import Connection, ConnectionType, MatchSpec
+
+    dashboard, xero, manifest_file = FIXTURE_FILES[kind]
+    manifest = json.loads((FIXTURE_DATA / manifest_file).read_text(encoding="utf-8"))
+
+    def load(conn_id, name):
+        conn = Connection(
+            id=conn_id, type=ConnectionType.FILE, config={"path": str(FIXTURE_DATA / name)}
+        )
+        return FileConnector(conn).fetch()
+
+    a, b = load("dashboard", dashboard), load("xero", xero)
+    spec = MatchSpec(
+        extract_a=a.extract.id,
+        extract_b=b.extract.id,
+        key_columns=["invoice_number"],
+        key_columns_b=["InvoiceNumber"],
+        amount_column="amount",
+        amount_column_b="Total",
+        date_column="appointment_date",
+        date_column_b="InvoiceDate",
+        period=manifest["period"],
+    )
+    return manifest, a, b, spec
+
+
+def fixture_context(kind: str = "clean", assumptions=None):
+    from recon_engine.assumptions import AssumptionStore
+    from recon_engine.checks import CheckContext
+    from recon_engine.match import match
+
+    manifest, a, b, spec = fixture_extracts(kind)
+    ctx = CheckContext(
+        a=a,
+        b=b,
+        spec=spec,
+        result=match(a, b, spec),
+        assumptions=assumptions if assumptions is not None else AssumptionStore(),
+    )
+    return manifest, ctx
+
+
+def plan_for(kind: str, manifest) -> list:
+    if kind == "clean":
+        return list(CLEAN_PLAN.values())
+    return [(name, params) for name, params in manifest["plan"]]

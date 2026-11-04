@@ -1,7 +1,12 @@
 """Duplicates: one side repeats a row that the other side has once.
 
-Guardrails: every repeated row must be identical in every column of its
-extract, and the other side's amount for that key must equal one copy.
+Guardrails: every repeated row must be identical in the compared columns (by
+default every column of its extract; the compared set must include the amount
+column), and the other side's amount for that key must equal one copy.
+
+`compare_columns` lets a reviewer treat rows that differ only in load metadata
+(a load ID, an export timestamp) as duplicates. The columns compared, and so the
+ones ignored, are logged as an assumption.
 """
 
 from __future__ import annotations
@@ -13,6 +18,7 @@ from pydantic import Field
 from recon_engine.checks.base import (
     Check,
     CheckContext,
+    CheckParameterError,
     CheckParams,
     Claim,
     Item,
@@ -26,15 +32,25 @@ from recon_engine.models import Assumption
 
 class DuplicatesParams(CheckParams):
     side: Side = Field(description="The side that contains the repeated rows.")
+    compare_columns: list[str] | None = Field(
+        default=None,
+        min_length=1,
+        description="Columns that must be identical for rows to count as copies. "
+        "Default: every column. Must include the amount column.",
+    )
+
+
+def _compared(ctx: CheckContext, params: DuplicatesParams) -> list[str]:
+    return params.compare_columns or list(ctx.data(params.side).extract.columns)
 
 
 @register
 class DuplicatesCheck(Check):
     name = "duplicates"
-    version = "1.0.0"
+    version = "1.1.0"
     description = (
-        "Keys where one side has the same row several times, identical in every column, "
-        "and the other side has it once."
+        "Keys where one side has the same row several times (identical in every column, or "
+        "in the columns named by compare_columns) and the other side has it once."
     )
     Params = DuplicatesParams
 
@@ -42,6 +58,14 @@ class DuplicatesCheck(Check):
         self, ctx: CheckContext, items: list[Item], params: DuplicatesParams
     ) -> Iterable[Claim]:
         amount_column = ctx.amount_column(params.side)
+        columns = _compared(ctx, params)
+        for column in columns:
+            ctx.require_column(params.side, column)
+        if amount_column not in columns:
+            raise CheckParameterError(
+                f"compare_columns must include the amount column '{amount_column}'"
+            )
+
         claims = []
         for item in items:
             if item.kind != "difference":
@@ -50,22 +74,37 @@ class DuplicatesCheck(Check):
             once = item.amount_b if params.side == "a" else item.amount_a
             if len(repeated) < 2:
                 continue
-            copies = {canonical_json(list(ctx.row(row_id).values())) for row_id in repeated}
+            copies = {
+                canonical_json([ctx.value(row_id, c) for c in columns]) for row_id in repeated
+            }
             if len(copies) != 1:
                 continue
             if to_decimal(ctx.value(repeated[0], amount_column)) == once:
                 claims.append(Claim(item))
         return claims
 
-    def assumptions(
+    def propose_assumptions(
         self, ctx: CheckContext, params: DuplicatesParams, proposed_by: ProposedBy
     ) -> list[Assumption]:
+        side = params.side.upper()
+        compared = _compared(ctx, params)
+        ignored = [c for c in ctx.data(params.side).extract.columns if c not in compared]
+        basis = (
+            f"identical in {compared}; differences in {ignored} are ignored"
+            if ignored
+            else "identical in every column"
+        )
         return [
             Assumption.propose(
                 "duplicates.side",
                 params.side,
-                f"Rows on side {params.side.upper()} that are identical in every column are "
-                "duplicate copies of one transaction.",
+                f"Repeated rows on side {side} are duplicate copies of one transaction.",
                 proposed_by,
-            )
+            ),
+            Assumption.propose(
+                "duplicates.compare_columns",
+                compared,
+                f"Rows on side {side} count as copies when they are {basis}.",
+                proposed_by,
+            ),
         ]

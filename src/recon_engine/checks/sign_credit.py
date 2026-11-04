@@ -93,7 +93,7 @@ class SignCreditCheck(Check):
                 claims.append(Claim(item))
         return claims
 
-    def assumptions(
+    def propose_assumptions(
         self, ctx: CheckContext, params: SignCreditParams, proposed_by: ProposedBy
     ) -> list[Assumption]:
         if params.mode == "sign_flip":

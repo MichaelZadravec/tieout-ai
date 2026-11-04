@@ -66,7 +66,7 @@ class TaxBasisCheck(Check):
                 claims.append(Claim(item))
         return claims
 
-    def assumptions(
+    def propose_assumptions(
         self, ctx: CheckContext, params: TaxBasisParams, proposed_by: ProposedBy
     ) -> list[Assumption]:
         percent = f"{(params.rate * 100).normalize():f}%"

@@ -39,8 +39,40 @@ or point `UV_PROJECT_ENVIRONMENT` at a short directory.
 - `fixtures/generate.py`: deterministic "dashboard vs Xero" pair with injected
   issues; output and answer key live in `fixtures/data/`
 
+- `fixtures/generate_messy.py`: a messy pair (case/whitespace variants, blanks,
+  compound timing+GST, near-duplicates, 1-cent rounding) whose honest residual is
+  not zero; its manifest lists every item that must stay unexplained
+- `assumptions.py`: the assumption store; buckets and certificates refer to it by ID
+- `certify.py`: conservation checks, certificate issue and hash verification
+- `render.py`: certificate to a printable HTML report
+- `session.py`: the on-disk workspace (`.recon/` or `$RECON_HOME`) and a reconciliation session
+
 Regenerate the fixtures with:
 
 ```bash
 uv run python fixtures/generate.py
+```
+
+```bash
+uv run python fixtures/generate_messy.py
+```
+
+## CLI
+
+Confirming an assumption is a human-only action and exists only here:
+
+```bash
+uv run recon assumptions list
+```
+
+```bash
+uv run recon confirm <assumption_id> --by "Your Name"
+```
+
+```bash
+uv run recon cert list
+```
+
+```bash
+uv run recon cert show <certificate_id> --html report.html
 ```

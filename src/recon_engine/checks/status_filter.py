@@ -57,7 +57,7 @@ class StatusFilterCheck(Check):
                 claims.append(Claim(item))
         return claims
 
-    def assumptions(
+    def propose_assumptions(
         self, ctx: CheckContext, params: StatusFilterParams, proposed_by: ProposedBy
     ) -> list[Assumption]:
         side, excluding = params.side.upper(), other(params.side).upper()
