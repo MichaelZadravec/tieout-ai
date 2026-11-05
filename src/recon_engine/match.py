@@ -4,8 +4,8 @@ Rows are grouped by key on each side and their amounts summed per key. A key on
 both sides with equal sums is matched; with unequal sums it is an amount
 difference; on one side only, each of its rows is unmatched. Rows with any
 missing key column never match. Nothing is dropped silently: rows outside the
-period are listed as excluded, and rows with an empty amount are listed as
-invalid (a data-quality problem) and left out of the totals.
+period are listed as excluded, and rows whose amount is empty or not a number
+are listed as invalid (a data-quality problem) and left out of the totals.
 """
 
 from __future__ import annotations
@@ -83,17 +83,15 @@ def _prepare(
             continue
 
         raw_amount = row[len(keys)]
+        key = tuple(canonical_value(v) for v in row[: len(keys)])
         try:
             amount = to_decimal(raw_amount)
+            reason = None if amount is not None else f"amount is empty ({amount_column})"
         except ValueError:
-            raise MatchError(
-                f"{where}: amount column '{amount_column}' value {raw_amount!r} is not a number"
-            ) from None
-        key = tuple(canonical_value(v) for v in row[: len(keys)])
+            amount = None
+            reason = f"amount {raw_amount!r} is not a number ({amount_column})"
         if amount is None:
-            side.invalid.append(
-                InvalidRow(row_id=rid, key=list(key), reason=f"amount is empty ({amount_column})")
-            )
+            side.invalid.append(InvalidRow(row_id=rid, key=list(key), reason=reason))
             continue
         side.total += amount
 

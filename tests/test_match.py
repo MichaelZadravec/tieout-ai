@@ -159,11 +159,17 @@ def test_missing_column_is_a_clear_error():
         match(a, b, spec_for(a, b, amount_column_b="total"))
 
 
-def test_non_numeric_amount_is_a_clear_error():
-    a = make_extract([("INV-001", "2026-10-03", "ten", "PAID")], "a")
+def test_non_numeric_amount_becomes_a_data_quality_row_not_an_error():
+    a = make_extract([("INV-001", "2026-10-03", "ten", "PAID"), *INVOICES[1:]], "a")
     b = make_extract(INVOICES, "b")
-    with pytest.raises(MatchError, match="is not a number"):
-        match(a, b, spec_for(a, b))
+    result = match(a, b, spec_for(a, b))
+
+    [invalid] = result.invalid_a
+    assert invalid.key == ["INV-001"]
+    assert "'ten' is not a number" in invalid.reason
+    assert [r.key for r in result.only_b] == [["INV-001"]]
+    assert result.gap == Decimal("-100.00")
+    assert_conserved(result)
 
 
 def test_empty_amount_becomes_a_data_quality_row_not_an_error():

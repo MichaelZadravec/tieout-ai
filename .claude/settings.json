@@ -10,7 +10,9 @@
       "PowerShell(uv run recon confirm*)",
       "PowerShell(*recon confirm*)",
       "PowerShell(*recon.exe confirm*)",
-      "PowerShell(*recon_engine.cli confirm*)"
+      "PowerShell(*recon_engine.cli confirm*)",
+      "Edit(/.recon/**)",
+      "Edit(.recon/**)"
     ]
   }
 }
