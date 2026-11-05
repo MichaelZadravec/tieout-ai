@@ -17,7 +17,8 @@ import typer
 
 from recon_engine import __version__
 from recon_engine.assumptions import AssumptionError
-from recon_engine.models import CertificateStatus
+from recon_engine.connections import ConnectionStoreError
+from recon_engine.models import CertificateStatus, Connection, ConnectionType
 from recon_engine.render import money, render_html
 from recon_engine.session import CertificateError, Workspace
 
@@ -25,7 +26,11 @@ app = typer.Typer(help="recon_engine command-line interface.", no_args_is_help=T
 assumptions_app = typer.Typer(help="Inspect assumptions.", no_args_is_help=True)
 cert_app = typer.Typer(help="View and check certificates.", no_args_is_help=True)
 app.add_typer(assumptions_app, name="assumptions")
+connections_app = typer.Typer(
+    help="Manage data sources. Credentials stay on this machine.", no_args_is_help=True
+)
 app.add_typer(cert_app, name="cert")
+app.add_typer(connections_app, name="connections")
 
 
 def _workspace(ctx: typer.Context) -> Workspace:
@@ -199,3 +204,90 @@ def show_certificate(
     if json_out is not None:
         json_out.write_text(cert.model_dump_json(indent=2) + "\n", encoding="utf-8")
         out(f"Wrote JSON to {json_out}")
+
+
+@connections_app.command("add-file")
+def add_file_connection(
+    ctx: typer.Context,
+    connection_id: Annotated[str, typer.Argument(help="Short ID, e.g. dashboard.")],
+    path: Annotated[Path, typer.Argument(help="CSV or Excel file.")],
+    replace: Annotated[bool, typer.Option("--replace", help="Overwrite an existing ID.")] = False,
+) -> None:
+    """Add a CSV or Excel file as a data source."""
+    resolved = path.resolve()
+    if not resolved.is_file():
+        _fail(f"No file at {resolved}")
+        return
+    conn = Connection(id=connection_id, type=ConnectionType.FILE, config={"path": str(resolved)})
+    try:
+        _workspace(ctx).connections.add(conn, replace=replace)
+    except ConnectionStoreError as error:
+        _fail(str(error))
+        return
+    typer.echo(f"Added file connection '{connection_id}' -> {resolved}")
+
+
+@connections_app.command("add-sql")
+def add_sql_connection(
+    ctx: typer.Context,
+    connection_id: Annotated[str, typer.Argument(help="Short ID, e.g. ledger.")],
+    url: Annotated[
+        str | None,
+        typer.Option(
+            "--url",
+            help="SQLAlchemy URL. Omit to type it at a hidden prompt (keeps it out of "
+            "shell history).",
+        ),
+    ] = None,
+    replace: Annotated[bool, typer.Option("--replace", help="Overwrite an existing ID.")] = False,
+) -> None:
+    """Add a SQL database. Use a read-only database user."""
+    from sqlalchemy.engine import make_url
+
+    if url is None:
+        url = typer.prompt("Database URL", hide_input=True)
+    try:
+        parsed = make_url(url)
+    except Exception:
+        _fail("That is not a valid SQLAlchemy URL")
+        return
+    conn = Connection(id=connection_id, type=ConnectionType.SQL, config={"url": url})
+    try:
+        _workspace(ctx).connections.add(conn, replace=replace)
+    except ConnectionStoreError as error:
+        _fail(str(error))
+        return
+    typer.echo(
+        f"Added SQL connection '{connection_id}' -> {parsed.render_as_string(hide_password=True)}"
+    )
+    typer.echo("Use a read-only database user: the engine only runs SELECTs, but defence in depth.")
+
+
+@connections_app.command("list")
+def list_connections(ctx: typer.Context) -> None:
+    """List connections. Passwords are never shown."""
+    from sqlalchemy.engine import make_url
+
+    connections = _workspace(ctx).connections.all()
+    if not connections:
+        typer.echo("No connections yet.")
+        return
+    for conn in connections:
+        if conn.type == ConnectionType.SQL:
+            where = make_url(conn.config["url"]).render_as_string(hide_password=True)
+        else:
+            where = conn.config.get("path", "")
+        typer.echo(f"{conn.id}  [{conn.type.value}]  {where}")
+
+
+@connections_app.command("remove")
+def remove_connection(
+    ctx: typer.Context, connection_id: Annotated[str, typer.Argument(help="Connection ID.")]
+) -> None:
+    """Remove a connection."""
+    try:
+        _workspace(ctx).connections.remove(connection_id)
+    except ConnectionStoreError as error:
+        _fail(str(error))
+        return
+    typer.echo(f"Removed connection '{connection_id}'")

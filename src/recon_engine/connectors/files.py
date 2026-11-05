@@ -32,7 +32,7 @@ class FileConnector(Connector):
 
     def _fetch_csv(self, path: Path, sheet: str | None) -> ExtractData:
         if sheet is not None:
-            raise ConnectorError("CSV files have no sheets; call fetch() without a query")
+            raise ConnectorError("CSV files have no sheets; omit the query for a CSV file")
         frame = pd.read_csv(path, dtype=object, keep_default_na=False, encoding="utf-8-sig")
         frame = frame.map(lambda v: None if v == "" else v)
         return build_extract(self.connection.id, f"FILE {path.name}", frame)

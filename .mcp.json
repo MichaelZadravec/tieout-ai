@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "recon": {
+      "command": "uv",
+      "args": ["run", "recon-mcp"]
+    }
+  }
+}

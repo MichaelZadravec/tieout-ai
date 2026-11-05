@@ -1,8 +1,9 @@
 """Local state: the workspace on disk, and one reconciliation in progress.
 
 A Workspace is a directory (default `.recon/`, or $RECON_HOME) holding the
-assumption store and issued certificates. A Session is one reconciliation:
-two extracts, a MatchSpec, the checks run so far, and certification.
+connections (with their credentials), the assumption store and issued
+certificates. A Session is one reconciliation: two extracts, a MatchSpec, the
+checks run so far, and certification.
 """
 
 from __future__ import annotations
@@ -14,6 +15,7 @@ from typing import Any
 from recon_engine.assumptions import AssumptionStore
 from recon_engine.certify import certify, verify_certificate
 from recon_engine.checks import CheckContext, ProposedBy, get_check
+from recon_engine.connections import ConnectionStore
 from recon_engine.match import match
 from recon_engine.models import Assumption, Bucket, Certificate, ExtractData, MatchSpec
 
@@ -30,6 +32,7 @@ class Workspace:
     def __init__(self, root: Path | None = None) -> None:
         self.root = root or default_home()
         self.assumptions = AssumptionStore(self.root / "assumptions.json")
+        self.connections = ConnectionStore(self.root / "connections.json")
 
     @property
     def certificate_dir(self) -> Path:

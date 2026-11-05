@@ -109,3 +109,34 @@ def plan_for(kind: str, manifest) -> list:
     if kind == "clean":
         return list(CLEAN_PLAN.values())
     return [(name, params) for name, params in manifest["plan"]]
+
+
+# match() arguments for the fixture pairs, as an AI would pass them.
+FIXTURE_MATCH_ARGS = {
+    "key_columns": ["invoice_number"],
+    "key_columns_b": ["InvoiceNumber"],
+    "amount_column": "amount",
+    "amount_column_b": "Total",
+    "date_column": "appointment_date",
+    "date_column_b": "InvoiceDate",
+    "period_start": "2026-10-01",
+    "period_end": "2026-10-31",
+}
+
+
+def fixture_workspace(root: Path, kind: str = "clean"):
+    """A workspace whose connections 'dashboard' and 'xero' point at a fixture pair."""
+    from recon_engine.models import Connection, ConnectionType
+    from recon_engine.session import Workspace
+
+    dashboard, xero, _ = FIXTURE_FILES[kind]
+    workspace = Workspace(root)
+    for conn_id, name in (("dashboard", dashboard), ("xero", xero)):
+        workspace.connections.add(
+            Connection(
+                id=conn_id,
+                type=ConnectionType.FILE,
+                config={"path": str(FIXTURE_DATA / name)},
+            )
+        )
+    return workspace
