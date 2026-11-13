@@ -231,6 +231,11 @@ class Assumption(_Model):
     confirmed: bool = False
     confirmed_by: str | None = None
     confirmed_at: datetime | None = None
+    # The confirmer's Ed25519 signature over the id, content hash, name and time.
+    # A confirmation without a valid signature counts as unconfirmed.
+    confirmed_content_hash: str | None = None
+    signature: str | None = None
+    signing_key_fingerprint: str | None = None
 
     @classmethod
     def propose(
@@ -355,6 +360,12 @@ class Certificate(_Model):
     gross_unexplained: Decimal | None = None
     assumptions: list[Assumption]
     unconfirmed_assumptions: list[str]
+    # Assumptions marked confirmed whose confirmation could not be verified, with why.
+    # They count as unconfirmed.
+    unverified_confirmations: dict[str, str] = Field(default_factory=dict)
+    # The confirmer key confirmations were checked against, and whose it is.
+    confirmer_key_fingerprint: str | None = None
+    confirmer: str | None = None
     supersedes: str | None = None
     certificate_hash: str
 

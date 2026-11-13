@@ -1,7 +1,7 @@
 """B2: SQL that truncates is refused; every filter becomes an assumption a person confirms."""
 
 import pytest
-from support import INVOICES
+from support import INVOICES, signer
 
 from recon_engine.connectors.base import UnsafeQueryError
 from recon_engine.connectors.sql import SQLConnector, describe_filters, validate_select
@@ -114,7 +114,7 @@ def test_a_status_filter_is_an_elevated_assumption_that_blocks_reconciled(tmp_pa
     assert first.status == CertificateStatus.PROVISIONAL
     assert assumption.id in first.unconfirmed_assumptions
 
-    session.workspace.assumptions.confirm(assumption.id, "Jane CFO")
+    session.workspace.assumptions.confirm(assumption.id, signer())
     assert session.certify().status == CertificateStatus.RECONCILED
 
 

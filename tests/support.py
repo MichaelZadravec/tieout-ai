@@ -147,3 +147,15 @@ def fixture_workspace(root: Path, kind: str = "clean"):
     for conn_id, name in (("dashboard", dashboard), ("xero", xero)):
         workspace.connections.add(registered_file(conn_id, FIXTURE_DATA / name))
     return workspace
+
+
+# The confirmer key every test signs with. conftest points RECON_KEYS_DIR at a
+# temporary folder holding it, so tests never touch a real key.
+CONFIRMER = "Jane CFO"
+PASSPHRASE = "correct horse battery"
+
+
+def signer():
+    from recon_engine.signing import load_signer
+
+    return load_signer(PASSPHRASE)

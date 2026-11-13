@@ -4,7 +4,7 @@ from contextlib import closing
 from pathlib import Path
 
 import pytest
-from support import COLUMNS, INVOICES
+from support import COLUMNS, CONFIRMER, INVOICES, PASSPHRASE
 
 
 @pytest.fixture
@@ -29,3 +29,18 @@ def invoices_db(tmp_path: Path) -> Path:
             [(i, d, float(a), s) for i, d, a, s in INVOICES],
         )
     return path
+
+
+@pytest.fixture(scope="session")
+def confirmer_keys(tmp_path_factory) -> Path:
+    from recon_engine.signing import init_keys
+
+    directory = tmp_path_factory.mktemp("keys")
+    init_keys(CONFIRMER, PASSPHRASE, directory)
+    return directory
+
+
+@pytest.fixture(autouse=True)
+def isolated_keys(confirmer_keys, monkeypatch):
+    """Every test signs with the test confirmer key, never a real one."""
+    monkeypatch.setenv("RECON_KEYS_DIR", str(confirmer_keys))

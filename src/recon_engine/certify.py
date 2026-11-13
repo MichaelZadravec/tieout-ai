@@ -28,6 +28,7 @@ from recon_engine.models import (
     MatchSummary,
     ResidualItem,
 )
+from recon_engine.signing import TrustedKey
 
 _UNHASHED = {"id", "certificate_hash"}
 
@@ -111,12 +112,16 @@ def certify(
     now: datetime | None = None,
     supersedes: str | None = None,
     extra_assumption_ids: Sequence[str] = (),
+    confirmer_key: TrustedKey | None = None,
 ) -> Certificate:
     """Check conservation and issue a certificate.
 
     Empty buckets become `checks_without_findings`; their assumptions are not
     carried, since nothing on the certificate depends on them. `extra_assumption_ids`
     are assumptions proposed for the reconciliation as a whole (e.g. scope).
+
+    A confirmation counts only if it verifies against `confirmer_key`; without a
+    key, nothing counts as confirmed.
     """
     kept = [bucket for bucket in buckets if bucket.item_ids]
     empty = [
@@ -144,7 +149,15 @@ def certify(
         dict.fromkeys([*(i for b in kept for i in b.assumption_ids), *extra_assumption_ids])
     )
     assumptions = ctx.assumptions.get_many(assumption_ids)
-    unconfirmed = [a.id for a in assumptions if not a.confirmed]
+    unverified = {
+        a.id: problem
+        for a in assumptions
+        if a.confirmed
+        and (
+            problem := confirmer_key.problem(a) if confirmer_key else "no confirmer key to check it"
+        )
+    }
+    unconfirmed = [a.id for a in assumptions if not a.confirmed or a.id in unverified]
     source_warnings = [e.source_warning for e in (ctx.a.extract, ctx.b.extract) if e.source_warning]
     if open_items or residual != 0 or source_warnings:
         status = CertificateStatus.OPEN
@@ -192,6 +205,9 @@ def certify(
         gross_unexplained=sum((abs(item.amount) for item in open_items), Decimal(0)),
         assumptions=assumptions,
         unconfirmed_assumptions=unconfirmed,
+        unverified_confirmations=unverified,
+        confirmer_key_fingerprint=confirmer_key.fingerprint if confirmer_key else None,
+        confirmer=confirmer_key.owner if confirmer_key else None,
         supersedes=supersedes,
         certificate_hash="",
     )

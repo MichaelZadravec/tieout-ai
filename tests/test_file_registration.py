@@ -3,7 +3,7 @@
 import shutil
 
 import pytest
-from support import FIXTURE_DATA, FIXTURE_MATCH_ARGS, plan_for
+from support import FIXTURE_DATA, FIXTURE_MATCH_ARGS, PASSPHRASE, plan_for
 from typer.testing import CliRunner
 
 from recon_engine import cli
@@ -54,7 +54,7 @@ def reconcile(home):
 
 def confirm_everything(home):
     for assumption in Workspace(home).assumptions.all():
-        done = recon(home, "confirm", assumption.id, "--by", "Jane CFO", input=f"{CODE}\n")
+        done = recon(home, "confirm", assumption.id, input=f"{CODE}\n{PASSPHRASE}\n")
         assert done.exit_code == 0, done.output
 
 

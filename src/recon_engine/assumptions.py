@@ -8,8 +8,10 @@ The file on disk is the only source of truth. Every read and every write loads
 it afresh, because a person confirms with `recon confirm` in another process
 while the MCP server keeps running.
 
-`confirm` is for humans only. The CLI calls it; the MCP server must never
-expose it, so an AI cannot confirm its own assumptions.
+`confirm` is for humans only, and takes the confirmer's unlocked signing key
+(see signing.py): a confirmation is only as good as its signature. The CLI calls
+it; the MCP server must never expose it, so an AI cannot confirm its own
+assumptions.
 """
 
 from __future__ import annotations
@@ -18,10 +20,14 @@ import json
 import os
 import tempfile
 from collections.abc import Iterable
-from datetime import UTC, datetime
+from datetime import datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from recon_engine.models import Assumption
+
+if TYPE_CHECKING:
+    from recon_engine.signing import Signer
 
 
 class AssumptionError(Exception):
@@ -73,23 +79,27 @@ class AssumptionStore:
         items = self._load()
         return [items[i] for i in sorted(items)]
 
-    def confirm(
-        self, assumption_id: str, confirmed_by: str, at: datetime | None = None
-    ) -> Assumption:
-        """Record a human's confirmation. Human-only: never expose this to an AI."""
-        if not confirmed_by.strip():
-            raise AssumptionError("A confirmation needs the name of the person confirming")
+    def confirm(self, assumption_id: str, signer: Signer, at: datetime | None = None) -> Assumption:
+        """Record a human's signed confirmation. Human-only: never expose this to an AI.
+
+        An assumption already validly confirmed with this key is left as it is; one
+        marked confirmed without a valid signature is confirmed afresh.
+        """
         items = self._load()
         current = self._get(items, assumption_id)
-        if current.confirmed:
+        if current.confirmed and signer.trusted.problem(current) is None:
             return current
-        confirmed = current.model_copy(
+        unsigned = current.model_copy(
             update={
-                "confirmed": True,
-                "confirmed_by": confirmed_by.strip(),
-                "confirmed_at": at or datetime.now(UTC),
+                "confirmed": False,
+                "confirmed_by": None,
+                "confirmed_at": None,
+                "confirmed_content_hash": None,
+                "signature": None,
+                "signing_key_fingerprint": None,
             }
         )
+        confirmed = signer.sign(unsigned, at)
         items[assumption_id] = confirmed
         self._save(items)
         return confirmed

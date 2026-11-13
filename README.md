@@ -138,9 +138,22 @@ must confirm it before the certificate can be RECONCILED.
 
 ## Confirming assumptions (people only)
 
-`recon confirm` runs only in an interactive terminal and asks you to retype a
-random code, so scripts and AI agents cannot drive it. This project's
-`.claude/settings.json` also denies the command to Claude Code.
+A confirmation counts only if it is signed with the confirmer's key. Create your
+key once (it asks for a passphrase; the private key is stored encrypted in your
+user profile, `%APPDATA%econ\keys` on Windows, never in the workspace):
+
+```bash
+uv run recon keys init --name "Your Name"
+```
+
+`recon confirm` runs only in an interactive terminal, asks you to retype a
+random code and then for your passphrase, and signs the assumption's ID, a hash
+of its content, your name and the time. `certify` verifies every confirmation
+against your public key: one that is unsigned (for example `"confirmed": true`
+typed into the store), signed by another key, or whose assumption was edited
+after signing counts as unconfirmed, and the certificate says why. Certificates
+record the key's fingerprint and owner; `recon keys show` prints them.
+This project's `.claude/settings.json` also denies these commands to Claude Code.
 
 ## CLI
 
@@ -151,7 +164,7 @@ uv run recon assumptions list
 ```
 
 ```bash
-uv run recon confirm <assumption_id> --by "Your Name"
+uv run recon confirm <assumption_id>
 ```
 
 ```bash

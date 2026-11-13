@@ -19,9 +19,10 @@ from recon_engine.checks import list_checks as registered_checks
 from recon_engine.connections import ConnectionStoreError
 from recon_engine.connectors import connector_for
 from recon_engine.hashing import canonical_value, to_decimal
-from recon_engine.models import Certificate, Extract, ExtractData, MatchSpec, Period
+from recon_engine.models import Assumption, Certificate, Extract, ExtractData, MatchSpec, Period
 from recon_engine.render import render_html
 from recon_engine.session import Session, Workspace
+from recon_engine.signing import load_trusted_key
 
 MAX_PAGE = 200
 
@@ -311,7 +312,7 @@ class ReconService:
                             "description": a.description,
                             "elevated": a.elevated,
                             "elevated_reason": a.elevated_reason,
-                            "confirmed": a.confirmed,
+                            "confirmed": self._verified(a),
                         }
                         for a in assumptions
                     ]
@@ -330,7 +331,7 @@ class ReconService:
         return {
             "id": assumption.id,
             "description": assumption.description,
-            "confirmed": assumption.confirmed,
+            "confirmed": self._verified(assumption),
             "note": "Only a person can confirm this, with `recon confirm` in a terminal.",
         }
 
@@ -349,8 +350,14 @@ class ReconService:
         cert = self.workspace.load_certificate(certificate_id)  # verifies the hash
         return {**self._certificate_summary(cert), "hash_verified": True}
 
+    @staticmethod
+    def _verified(assumption: Assumption) -> bool:
+        """Confirmed with a signature that verifies, not merely marked confirmed."""
+        key = load_trusted_key()
+        return assumption.confirmed and key is not None and key.problem(assumption) is None
+
     def _certificate_summary(self, cert: Certificate) -> dict[str, Any]:
-        unconfirmed = [a for a in cert.assumptions if not a.confirmed]
+        unconfirmed = [a for a in cert.assumptions if a.id in cert.unconfirmed_assumptions]
         next_step = {
             "RECONCILED": "Nothing further: every item is explained and every "
             "assumption confirmed.",
@@ -392,10 +399,15 @@ class ReconService:
                     for a in unconfirmed
                 ],
                 "elevated_assumptions": [
-                    {"id": a.id, "reason": a.elevated_reason, "confirmed": a.confirmed}
+                    {
+                        "id": a.id,
+                        "reason": a.elevated_reason,
+                        "confirmed": a.id not in cert.unconfirmed_assumptions,
+                    }
                     for a in cert.assumptions
                     if a.elevated
                 ],
+                "unverified_confirmations": cert.unverified_confirmations,
                 "source_warnings": cert.source_warnings,
                 "certificate_hash": cert.certificate_hash,
                 "next_step": next_step,

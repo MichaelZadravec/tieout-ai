@@ -23,6 +23,14 @@ from recon_engine.connections import ConnectionStoreError, file_registration
 from recon_engine.models import CertificateStatus, Connection, ConnectionType, source_names
 from recon_engine.render import money, render_html
 from recon_engine.session import CertificateError, Workspace
+from recon_engine.signing import (
+    MIN_PASSPHRASE,
+    SigningError,
+    init_keys,
+    keys_dir,
+    load_signer,
+    load_trusted_key,
+)
 
 app = typer.Typer(help="recon_engine command-line interface.", no_args_is_help=True)
 assumptions_app = typer.Typer(help="Inspect assumptions.", no_args_is_help=True)
@@ -31,7 +39,9 @@ app.add_typer(assumptions_app, name="assumptions")
 connections_app = typer.Typer(
     help="Manage data sources. Credentials stay on this machine.", no_args_is_help=True
 )
+keys_app = typer.Typer(help="Your confirmer signing key.", no_args_is_help=True)
 app.add_typer(cert_app, name="cert")
+app.add_typer(keys_app, name="keys")
 app.add_typer(connections_app, name="connections")
 
 
@@ -98,12 +108,8 @@ def version() -> None:
 def confirm(
     ctx: typer.Context,
     assumption_id: Annotated[str, typer.Argument(help="ID of the assumption to confirm.")],
-    by: Annotated[
-        str | None,
-        typer.Option("--by", help="Name of the person confirming (default: your login name)."),
-    ] = None,
 ) -> None:
-    """Confirm an assumption. Interactive only: you retype a code to prove you are here."""
+    """Confirm an assumption, signed with your key. Interactive only."""
     _require_terminal("recon confirm")
     store = _workspace(ctx).assumptions
     try:
@@ -111,20 +117,73 @@ def confirm(
     except AssumptionError as error:
         _fail(str(error))
         return
-    if assumption.confirmed:
+    trusted = load_trusted_key()
+    if trusted is None:
+        _fail("No confirmer key on this machine. Create one first with `recon keys init`.")
+        return
+    if assumption.confirmed and trusted.problem(assumption) is None:
         typer.echo(f"Already confirmed by {assumption.confirmed_by}: {assumption.id}")
         return
+    if assumption.confirmed:
+        typer.echo(f"Marked confirmed, but {trusted.problem(assumption)}; confirm it again.")
 
     typer.echo(f"Assumption {assumption.id} (proposed by {assumption.proposed_by}):")
+    if assumption.elevated:
+        typer.echo(f"  ELEVATED: {assumption.elevated_reason}")
     typer.echo(f"  {assumption.description}")
     typer.echo(f"  {assumption.parameter} = {assumption.value}")
     if not _person_retypes_code("confirm"):
         _fail("The code did not match; nothing was confirmed.")
         return
-    confirmed = store.confirm(assumption_id, by or getpass.getuser())
-    typer.echo(f"Confirmed {confirmed.id} by {confirmed.confirmed_by}")
+    passphrase = typer.prompt(f"Passphrase for {trusted.owner}'s key", hide_input=True)
+    try:
+        signer = load_signer(passphrase)
+    except SigningError as error:
+        _fail(f"{error}; nothing was confirmed.")
+        return
+    confirmed = store.confirm(assumption_id, signer)
+    typer.echo(f"Confirmed {confirmed.id} by {confirmed.confirmed_by}, signed with key")
+    typer.echo(f"  {confirmed.signing_key_fingerprint}")
     typer.echo(f"  {confirmed.description}")
     typer.echo("Re-issue any certificate that relies on it to record the confirmation.")
+
+
+@keys_app.command("init")
+def init_key(
+    name: Annotated[str, typer.Option("--name", help="Your name, as confirmations will show it.")],
+) -> None:
+    """Create your confirmer key, protected by a passphrase. Interactive only."""
+    _require_terminal("recon keys init")
+    existing = load_trusted_key()
+    if existing is not None:
+        typer.echo(f"A confirmer key already exists for {existing.owner} ({existing.fingerprint})")
+        typer.echo(f"in {keys_dir()}.")
+        return
+    passphrase = typer.prompt(
+        f"Choose a passphrase (at least {MIN_PASSPHRASE} characters)",
+        hide_input=True,
+        confirmation_prompt=True,
+    )
+    try:
+        trusted = init_keys(name, passphrase)
+    except SigningError as error:
+        _fail(str(error))
+        return
+    typer.echo(f"Created a confirmer key for {trusted.owner} in {keys_dir()}")
+    typer.echo(f"  Fingerprint {trusted.fingerprint}")
+    typer.echo("Certificates record this fingerprint. Keep a note of it: a certificate")
+    typer.echo("whose confirmations were checked against a different key is not yours.")
+
+
+@keys_app.command("show")
+def show_key() -> None:
+    """Show whose confirmer key this machine uses, and its fingerprint."""
+    trusted = load_trusted_key()
+    if trusted is None:
+        typer.echo(f"No confirmer key in {keys_dir()}. Create one with `recon keys init`.")
+        return
+    typer.echo(f"{trusted.owner}  {trusted.fingerprint}")
+    typer.echo(f"  {keys_dir()}")
 
 
 @assumptions_app.command("list")
@@ -136,9 +195,16 @@ def list_assumptions(ctx: typer.Context) -> None:
         return
     elevated = [a for a in assumptions if a.elevated]
     others = [a for a in assumptions if not a.elevated]
+    trusted = load_trusted_key()
 
     def show(a) -> None:
-        state = f"confirmed by {a.confirmed_by}" if a.confirmed else "unconfirmed"
+        problem = (trusted.problem(a) if trusted else "no confirmer key") if a.confirmed else None
+        if not a.confirmed:
+            state = "unconfirmed"
+        elif problem:
+            state = f"UNVERIFIED: marked confirmed, but {problem}"
+        else:
+            state = f"confirmed by {a.confirmed_by}, signature verified"
         typer.echo(f"{a.id}  [{state}]  proposed by {a.proposed_by}")
         if a.elevated:
             typer.echo(f"    ELEVATED: {a.elevated_reason}")
@@ -214,13 +280,22 @@ def show_certificate(
 
     if cert.unconfirmed_assumptions:
         out(f"UNCONFIRMED: {len(cert.unconfirmed_assumptions)} assumption(s) were not confirmed")
-        out("by a person when this certificate was issued:")
+        out("by a person (with a verified signature) when this certificate was issued:")
     else:
         out("All assumptions were confirmed when this certificate was issued.")
+    if cert.confirmer_key_fingerprint:
+        out(
+            f"Confirmations checked against {cert.confirmer}'s key {cert.confirmer_key_fingerprint}"
+        )
     current = workspace.assumptions
     for a in sorted(cert.assumptions, key=lambda a: not a.elevated):
-        mark = "confirmed" if a.confirmed else "UNCONFIRMED"
+        if a.id in cert.unverified_confirmations:
+            mark = "UNVERIFIED"
+        else:
+            mark = "UNCONFIRMED" if a.id in cert.unconfirmed_assumptions else "confirmed"
         out(f"  {a.id} [{mark}] {a.description}")
+        if a.id in cert.unverified_confirmations:
+            out(f"    confirmation could not be verified: {cert.unverified_confirmations[a.id]}")
         if a.elevated:
             out(f"    ELEVATED: {a.elevated_reason}")
         if not a.confirmed and a.id in current and current.get(a.id).confirmed:

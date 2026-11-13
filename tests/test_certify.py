@@ -5,7 +5,7 @@ from decimal import Decimal
 from pathlib import Path
 
 import pytest
-from support import CLEAN_PLAN, fixture_context, make_extract, plan_for
+from support import CLEAN_PLAN, fixture_context, make_extract, plan_for, signer
 
 from recon_engine import __version__
 from recon_engine.assumptions import AssumptionStore
@@ -61,8 +61,8 @@ def test_confirmed_assumptions_clear_the_flag_on_a_new_certificate():
     store = AssumptionStore()
     _, ctx, buckets, first = certified(store=store)
     for assumption_id in first.unconfirmed_assumptions:
-        store.confirm(assumption_id, "Jane CFO", at=NOW)
-    second = certify(ctx, buckets, now=NOW)
+        store.confirm(assumption_id, signer(), at=NOW)
+    second = certify(ctx, buckets, now=NOW, confirmer_key=signer().trusted)
 
     assert first.unconfirmed_assumptions  # the earlier certificate is unchanged
     assert first.status == CertificateStatus.PROVISIONAL
@@ -208,11 +208,13 @@ def test_extra_session_assumptions_are_part_of_the_certificate():
     store = AssumptionStore()
     _, ctx, buckets, _ = certified(store=store)
     for assumption in store.all():
-        store.confirm(assumption.id, "Jane CFO", at=NOW)
+        store.confirm(assumption.id, signer(), at=NOW)
     extra = store.propose(
         Assumption.propose("scope.entity", "AU01", "Only the AU01 entity is in scope.")
     )
-    cert = certify(ctx, buckets, now=NOW, extra_assumption_ids=[extra.id])
+    cert = certify(
+        ctx, buckets, now=NOW, extra_assumption_ids=[extra.id], confirmer_key=signer().trusted
+    )
 
     assert extra.id in cert.unconfirmed_assumptions
     assert cert.status == CertificateStatus.PROVISIONAL

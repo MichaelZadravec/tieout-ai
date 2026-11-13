@@ -27,6 +27,7 @@ from recon_engine.models import (
     MatchSpec,
     QueryFilter,
 )
+from recon_engine.signing import load_trusted_key
 
 
 class CertificateError(Exception):
@@ -171,6 +172,7 @@ class Session:
             self.buckets,
             supersedes=supersedes,
             extra_assumption_ids=self.assumption_ids,
+            confirmer_key=load_trusted_key(),
         )
         self.workspace.save_certificate(cert)
         self.last_certificate = cert.id

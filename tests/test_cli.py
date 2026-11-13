@@ -1,7 +1,7 @@
 import json
 
 import pytest
-from support import fixture_extracts, plan_for
+from support import PASSPHRASE, fixture_extracts, plan_for, signer
 from typer.testing import CliRunner
 
 from recon_engine import cli
@@ -55,7 +55,7 @@ def test_assumptions_list_shows_ids_and_state(home, cert):
 
 def test_confirm_refuses_non_interactive_input(home, cert):
     target = cert.unconfirmed_assumptions[0]
-    result = recon(home, "confirm", target, "--by", "Jane CFO", input=f"{CODE}\n")
+    result = recon(home, "confirm", target, input=f"{CODE}\n{PASSPHRASE}\n")
 
     assert result.exit_code == 1
     assert "interactive terminal" in result.output
@@ -64,7 +64,7 @@ def test_confirm_refuses_non_interactive_input(home, cert):
 
 def test_confirm_with_the_wrong_code_changes_nothing(home, cert, interactive):
     target = cert.unconfirmed_assumptions[0]
-    result = recon(home, "confirm", target, "--by", "Jane CFO", input="WRONG1\n")
+    result = recon(home, "confirm", target, input="WRONG1\n")
 
     assert result.exit_code == 1
     assert "did not match" in result.output
@@ -73,7 +73,7 @@ def test_confirm_with_the_wrong_code_changes_nothing(home, cert, interactive):
 
 def test_confirm_records_the_human_and_persists(home, cert, interactive):
     target = cert.unconfirmed_assumptions[0]
-    result = recon(home, "confirm", target, "--by", "Jane CFO", input=f"{CODE}\n")
+    result = recon(home, "confirm", target, input=f"{CODE}\n{PASSPHRASE}\n")
 
     assert result.exit_code == 0, result.output
     assert f"Type {CODE}" in result.output
@@ -84,7 +84,7 @@ def test_confirm_records_the_human_and_persists(home, cert, interactive):
 
 
 def test_confirm_unknown_assumption_fails_cleanly(home, cert, interactive):
-    result = recon(home, "confirm", "asm_nope", "--by", "Jane CFO")
+    result = recon(home, "confirm", "asm_nope")
 
     assert result.exit_code == 1
     assert "No assumption with id 'asm_nope'" in result.output
@@ -103,7 +103,7 @@ def test_cert_list_and_show(home, cert):
 
 
 def test_cert_show_notes_assumptions_confirmed_after_issue(home, cert):
-    Workspace(home).assumptions.confirm(cert.unconfirmed_assumptions[0], "Jane CFO")
+    Workspace(home).assumptions.confirm(cert.unconfirmed_assumptions[0], signer())
     shown = recon(home, "cert", "show", cert.id)
 
     assert "confirmed since this certificate was issued" in shown.output
@@ -169,7 +169,7 @@ def test_session_assumptions_make_the_certificate_provisional(home):
     for name, params in plan_for("clean", manifest):
         session.run_check(name, params)
     for assumption in workspace.assumptions.all():
-        workspace.assumptions.confirm(assumption.id, "Jane CFO")
+        workspace.assumptions.confirm(assumption.id, signer())
     assert session.certify().status.value == "RECONCILED"
 
     scope = session.propose_assumption("scope.entity", "AU01", "Only AU01 is in scope.")

@@ -90,8 +90,14 @@ def _names(cert: Certificate) -> tuple[str, str]:
     return source_names(cert.extracts[0].connection_id, cert.extracts[1].connection_id)
 
 
-def _assumption_state(a: Assumption) -> str:
-    if a.confirmed:
+def _assumption_state(a: Assumption, cert: Certificate) -> str:
+    problem = cert.unverified_confirmations.get(a.id)
+    if problem:
+        return (
+            '<span class="state unconfirmed">Confirmation could not be verified</span>'
+            f'<div class="meta">{_e(problem)}</div>'
+        )
+    if a.confirmed and a.id not in cert.unconfirmed_assumptions:
         when = a.confirmed_at.strftime("%d %b %Y %H:%M UTC") if a.confirmed_at else ""
         return f'<span class="state confirmed">Confirmed by {_e(a.confirmed_by)} {_e(when)}</span>'
     return '<span class="state unconfirmed">Unconfirmed</span>'
@@ -206,7 +212,7 @@ def render_html(cert: Certificate) -> str:
         body = "".join(
             f"""<tr><td><code>{_e(a.id)}</code></td><td>{_reason(a)}{_e(a.description)}
   <div class="meta">{_e(a.parameter)} = <code>{_e(a.value)}</code></div></td>
-  <td>{_e(a.proposed_by)}</td><td>{_assumption_state(a)}</td></tr>"""
+  <td>{_e(a.proposed_by)}</td><td>{_assumption_state(a, cert)}</td></tr>"""
             for a in rows
         )
         return f"""<table><thead><tr><th>ID</th><th>Statement</th><th>Proposed by</th>
@@ -246,6 +252,12 @@ def render_html(cert: Certificate) -> str:
 <table><thead><tr><th>Key</th><th>Where</th><th class="num">Amount</th></tr></thead>
 <tbody>{rows}</tbody></table>{more}"""
 
+    confirmer_line = (
+        f"Confirmations checked against {_e(cert.confirmer)}'s key "
+        f'<span class="hash">{_e(cert.confirmer_key_fingerprint)}</span><br>'
+        if cert.confirmer_key_fingerprint
+        else ""
+    )
     source_banner = "".join(
         f'<div class="banner bad"><strong>Source warning.</strong> {_e(w)}</div>'
         for w in cert.source_warnings
@@ -299,7 +311,7 @@ def render_html(cert: Certificate) -> str:
   </dl>
 
   <footer>
-    Engine version {_e(cert.engine_version)} · certificate hash
+    {confirmer_line}Engine version {_e(cert.engine_version)} · certificate hash
     <span class="hash">{_e(cert.certificate_hash)}</span><br>
     Check this certificate with <code>recon cert show {_e(cert.id)}</code>.
   </footer>

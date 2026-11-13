@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 
 import pandas as pd
-from support import COLUMNS, INVOICES, fixture_context, plan_for
+from support import COLUMNS, INVOICES, fixture_context, plan_for, signer
 
 from recon_engine.assumptions import AssumptionStore
 from recon_engine.certify import certify
@@ -19,8 +19,8 @@ def html_for(kind, store=None, confirm=False):
     buckets = run_checks(ctx, plan_for(kind, manifest))
     if confirm:
         for assumption in ctx.assumptions.all():
-            ctx.assumptions.confirm(assumption.id, "Jane CFO", at=NOW)
-    cert = certify(ctx, buckets, now=NOW)
+            ctx.assumptions.confirm(assumption.id, signer(), at=NOW)
+    cert = certify(ctx, buckets, now=NOW, confirmer_key=signer().trusted)
     return cert, render_html(cert)
 
 
@@ -108,8 +108,8 @@ def test_checks_with_no_findings_get_a_compact_line_and_no_warning():
     plan = [*plan_for("clean", manifest), ("duplicates", {"side": "b"})]
     buckets = run_checks(ctx, plan)
     for assumption in store.all():
-        store.confirm(assumption.id, "Jane CFO", at=NOW)
-    html = render_html(certify(ctx, buckets, now=NOW))
+        store.confirm(assumption.id, signer(), at=NOW)
+    html = render_html(certify(ctx, buckets, now=NOW, confirmer_key=signer().trusted))
 
     assert buckets[-1].assumption_ids == []  # the empty bucket assumed nothing...
     assert "Checks with no findings" in html

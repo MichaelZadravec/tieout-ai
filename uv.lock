@@ -925,6 +925,7 @@ name = "recon-engine"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "cryptography" },
     { name = "mcp" },
     { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
     { name = "numpy", version = "2.5.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
@@ -944,6 +945,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "cryptography", specifier = ">=43" },
     { name = "mcp", specifier = ">=2.3" },
     { name = "numpy", specifier = ">=1.26" },
     { name = "openpyxl", specifier = ">=3.1" },

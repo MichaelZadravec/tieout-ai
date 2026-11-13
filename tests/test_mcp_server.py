@@ -7,7 +7,7 @@ from decimal import Decimal
 
 import pytest
 from mcp.client import Client
-from support import CLEAN_PLAN, FIXTURE_MATCH_ARGS, fixture_workspace
+from support import CLEAN_PLAN, FIXTURE_MATCH_ARGS, PASSPHRASE, fixture_workspace
 from typer.testing import CliRunner
 
 from recon_engine import cli
@@ -140,8 +140,8 @@ def test_confirming_through_the_cli_while_the_server_runs_reaches_certify(tmp_pa
         for assumption in first["unconfirmed_assumptions"]:
             confirmed = CliRunner().invoke(
                 cli.app,
-                ["--home", str(home), "confirm", assumption["id"], "--by", "Jane CFO"],
-                input="K7Q2PX\n",
+                ["--home", str(home), "confirm", assumption["id"]],
+                input=f"K7Q2PX\n{PASSPHRASE}\n",
             )
             assert confirmed.exit_code == 0, confirmed.output
 
