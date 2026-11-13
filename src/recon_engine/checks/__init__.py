@@ -1,6 +1,13 @@
 """Discrepancy checks. Importing this package registers every built-in check."""
 
-from recon_engine.checks import duplicates, sign_credit, status_filter, tax_basis, timing
+from recon_engine.checks import (
+    duplicates,
+    rounding,
+    sign_credit,
+    status_filter,
+    tax_basis,
+    timing,
+)
 from recon_engine.checks.base import (
     Check,
     CheckContext,
@@ -33,6 +40,7 @@ __all__ = [
     "get_check",
     "list_checks",
     "register",
+    "rounding",
     "run_checks",
     "sign_credit",
     "status_filter",

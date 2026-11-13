@@ -105,6 +105,7 @@ def test_end_to_end_reconciliation_over_mcp(server):
         "tax_basis",
         "duplicates",
         "sign_credit",
+        "rounding",
     }
     # Every number in the explanation comes from the engine and adds up exactly.
     assert sum(Decimal(r["amount"]) for r in runs) == Decimal(started["gap"])

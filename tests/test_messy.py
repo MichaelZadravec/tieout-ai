@@ -10,7 +10,7 @@ from recon_engine.match import match
 from recon_engine.models import Connection, ConnectionType, MatchSpec, Period
 
 COMMITTED = Path(__file__).parent.parent / "fixtures" / "data"
-LABELS = ["timing", "status_filter", "tax_basis", "duplicates", "sign_flip"]
+LABELS = ["timing", "status_filter", "tax_basis", "duplicates", "sign_flip", "rounding"]
 
 
 @pytest.fixture(scope="module")

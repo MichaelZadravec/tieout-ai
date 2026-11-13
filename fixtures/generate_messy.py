@@ -8,10 +8,12 @@ must stay unexplained (`residual`), with the reason.
 Must be claimed:
 - timing:        10 clean timing invoices (October appointment, November invoice)
 - status_filter: voided invoices whose status is exactly "VOIDED" or "Voided"
-- tax_basis:     6 ex/inc GST pairs that round correctly to the cent
+- tax_basis:     6 ex/inc GST pairs that round correctly to the cent, plus 2 that
+                 are 1 cent off (claimable only with rounding_tolerance 0.01)
 - duplicates:    3 near-duplicates differing only in load_id/loaded_at
                  (claimable only with compare_columns that leave those out)
 - sign_flip:     1 credit note with opposite signs
+- rounding:      1 invoice 1 cent apart (rounding check, tolerance $0.01)
 
 Must stay unexplained:
 - voided rows whose status is "voided " or " VOIDED" (case/whitespace variants
@@ -20,8 +22,6 @@ Must stay unexplained:
 - an invoice number with a trailing space on the dashboard (two items, net $0)
 - a dashboard row with no invoice number
 - 2 compound invoices: timing AND GST at once (neither check alone can prove them)
-- 2 GST pairs that are 1 cent off the correctly rounded amount
-- 1 invoice 1 cent apart for no stated reason
 - 1 repeated invoice whose copies have different appointment dates (not a duplicate)
 - 1 dashboard row with an empty amount: a data-quality item, so Xero's row for that
   invoice is unmatched
@@ -63,7 +63,7 @@ RELOAD = ("L-1002", "2026-11-02T06:00:00")
 PLAN = [
     ["timing", {"max_shift_days": 31}],
     ["status_filter", {"side": "a", "status_column": "status", "statuses": ["VOIDED", "Voided"]}],
-    ["tax_basis", {"rate": "0.10", "inclusive_side": "b"}],
+    ["tax_basis", {"rate": "0.10", "inclusive_side": "b", "rounding_tolerance": "0.01"}],
     [
         "duplicates",
         {
@@ -72,8 +72,9 @@ PLAN = [
         },
     ],
     ["sign_credit", {"mode": "sign_flip"}],
+    ["rounding", {"tolerance": "0.01"}],
 ]
-CLAIM_LABELS = ["timing", "status_filter", "tax_basis", "duplicates", "sign_flip"]
+CLAIM_LABELS = ["timing", "status_filter", "tax_basis", "duplicates", "sign_flip", "rounding"]
 
 
 def _cents(value: Decimal) -> Decimal:
@@ -175,20 +176,20 @@ def generate_messy(out_dir: Path) -> dict:
         xero.append([key, when, _money(inc), "PAID", "ACCREC"])
         claim("tax_basis", key, ex_amount - inc)
 
-    # Residual: GST pairs 1 cent off the correctly rounded amount.
+    # Claimable with rounding_tolerance: GST pairs 1 cent off the correctly rounded amount.
     for ex in ["33.33", "64.20"]:
         key, when, ex_amount = number(), day().isoformat(), Decimal(ex)
         inc = _cents(ex_amount * (1 + GST)) + Decimal("0.01")
         assert _cents(inc / (1 + GST)) != ex_amount, "must not be provable either way"
         dash(key, when, _money(ex_amount))
         xero.append([key, when, _money(inc), "PAID", "ACCREC"])
-        unexplained(key, "difference", ex_amount - inc, "GST amount 1 cent off the rounded value")
+        claim("tax_basis", key, ex_amount - inc)
 
-    # Residual: 1 cent apart for no stated reason.
+    # Claimable by the rounding check: 1 cent apart.
     key, when = number(), day().isoformat()
     dash(key, when, "100.00")
     xero.append([key, when, "100.01", "PAID", "ACCREC"])
-    unexplained(key, "difference", Decimal("-0.01"), "1 cent difference, no rule explains it")
+    claim("rounding", key, Decimal("-0.01"))
 
     # Claimable with compare_columns: copies that differ only in load metadata.
     for _ in range(3):

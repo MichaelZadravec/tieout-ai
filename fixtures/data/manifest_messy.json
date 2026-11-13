@@ -9,6 +9,13 @@
         "INV-20190"
       ]
     },
+    "rounding": {
+      "amount": "-0.01",
+      "count": 1,
+      "keys": [
+        "INV-20187"
+      ]
+    },
     "sign_flip": {
       "amount": "190.00",
       "count": 1,
@@ -25,15 +32,17 @@
       ]
     },
     "tax_basis": {
-      "amount": "-54.88",
-      "count": 6,
+      "amount": "-64.65",
+      "count": 8,
       "keys": [
         "INV-20179",
         "INV-20180",
         "INV-20181",
         "INV-20182",
         "INV-20183",
-        "INV-20184"
+        "INV-20184",
+        "INV-20185",
+        "INV-20186"
       ]
     },
     "timing": {
@@ -80,7 +89,8 @@
       "tax_basis",
       {
         "inclusive_side": "b",
-        "rate": "0.10"
+        "rate": "0.10",
+        "rounding_tolerance": "0.01"
       }
     ],
     [
@@ -101,10 +111,16 @@
       {
         "mode": "sign_flip"
       }
+    ],
+    [
+      "rounding",
+      {
+        "tolerance": "0.01"
+      }
     ]
   ],
   "residual": {
-    "amount": "1316.22",
+    "amount": "1326.00",
     "items": [
       {
         "amount": "340.00",
@@ -153,24 +169,6 @@
         "key": null,
         "kind": "only_a",
         "reason": "row has no invoice number"
-      },
-      {
-        "amount": "-3.34",
-        "key": "INV-20185",
-        "kind": "difference",
-        "reason": "GST amount 1 cent off the rounded value"
-      },
-      {
-        "amount": "-6.43",
-        "key": "INV-20186",
-        "kind": "difference",
-        "reason": "GST amount 1 cent off the rounded value"
-      },
-      {
-        "amount": "-0.01",
-        "key": "INV-20187",
-        "kind": "difference",
-        "reason": "1 cent difference, no rule explains it"
       },
       {
         "amount": "180.00",

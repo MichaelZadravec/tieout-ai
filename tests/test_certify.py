@@ -109,7 +109,11 @@ def test_checks_with_no_findings_are_listed_without_their_assumptions():
     assert len(cert.buckets) == 6
     [empty] = cert.checks_without_findings
     assert empty.check_name == "tax_basis"
-    assert empty.parameters == {"rate": "0.15", "inclusive_side": "b"}
+    assert empty.parameters == {
+        "rate": "0.15",
+        "inclusive_side": "b",
+        "rounding_tolerance": "0",
+    }
     assert buckets[-1].assumption_ids == []
     assert len(cert.assumptions) == sum(len(b.assumption_ids) for b in cert.buckets)
 

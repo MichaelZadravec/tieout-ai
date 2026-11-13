@@ -34,15 +34,17 @@ or point `UV_PROJECT_ENVIRONMENT` at a short directory.
 - `connectors/`: `files.py` (CSV/XLSX) and `sql.py` (SQLAlchemy, SELECT-only via sqlglot)
 - `match.py`: row-level matching of two extracts and the gap
 - `checks/`: discrepancy checks (timing, status_filter, tax_basis, duplicates,
-  sign_credit) behind one interface and registry; the engine sums each bucket and
-  refuses overlapping claims
+  sign_credit, rounding) behind one interface and registry; the engine sums each
+  bucket and refuses overlapping claims
 - `fixtures/generate.py`: deterministic "dashboard vs Xero" pair with injected
   issues; output and answer key live in `fixtures/data/`
 
 - `fixtures/generate_messy.py`: a messy pair (case/whitespace variants, blanks,
   compound timing+GST, near-duplicates, 1-cent rounding) whose honest residual is
   not zero; its manifest lists every item that must stay unexplained
-- `assumptions.py`: the assumption store; buckets and certificates refer to it by ID
+- `assumptions.py`: the assumption store; buckets and certificates refer to it by ID.
+  Like the connection store, it is read from disk on every call, so a confirmation
+  made in a terminal reaches a running MCP server at once
 - `certify.py`: conservation checks, certificate issue and hash verification
 - `render.py`: certificate to a printable HTML report
 - `session.py`: the on-disk workspace (`.recon/` or `$RECON_HOME`) and a reconciliation session
@@ -87,6 +89,28 @@ uv run recon-mcp
 ```
 
 Built on the Python MCP SDK 2.x, where FastMCP is now called `MCPServer`.
+
+## Assumptions
+
+Every claim a check makes rests on assumptions, and each one is scoped to the
+records it covers: "For these 12 records (INV-10402 … INV-10413), xero amounts
+include 10% tax and dashboard amounts exclude it." The covered keys are part of
+the assumption's ID, so the same reasoning applied to other records is a new
+assumption that needs its own confirmation. A check that proves nothing assumes
+nothing.
+
+An assumption is **elevated** when its parameter loosens a check's default, and
+it carries a one-line reason. Elevated assumptions head the HTML certificate and
+`recon assumptions list`:
+
+- duplicates with `compare_columns` narrower than every column (and it can never
+  leave out the match key, amount or date columns)
+- status_filter naming several spellings of one status (`VOIDED`, `Voided`)
+- timing with a window wider than the default 7 days
+- rounding (any tolerance, default $0.01, at most $0.05 per record) and
+  tax_basis with a `rounding_tolerance` (at most $0.01)
+
+Everything a person reads calls each side by its connection name, not "side A/B".
 
 ## Confirming assumptions (people only)
 

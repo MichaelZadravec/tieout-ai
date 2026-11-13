@@ -253,7 +253,14 @@ def test_assumption_ids_are_deterministic(ctx):
 def test_list_checks_describes_every_check():
     listed = {c.name: c for c in list_checks()}
 
-    assert set(listed) == {"timing", "status_filter", "tax_basis", "duplicates", "sign_credit"}
+    assert set(listed) == {
+        "timing",
+        "status_filter",
+        "tax_basis",
+        "duplicates",
+        "sign_credit",
+        "rounding",
+    }
     for check in listed.values():
         assert check.version
         assert check.description
