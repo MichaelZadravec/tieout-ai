@@ -18,12 +18,11 @@ from recon_engine.checks.base import (
     CheckParams,
     Claim,
     Item,
-    ProposedBy,
+    Proposal,
     Side,
     other,
     register,
 )
-from recon_engine.models import Assumption
 
 _CENT = Decimal("0.01")
 
@@ -66,17 +65,14 @@ class TaxBasisCheck(Check):
                 claims.append(Claim(item))
         return claims
 
-    def propose_assumptions(
-        self, ctx: CheckContext, params: TaxBasisParams, proposed_by: ProposedBy
-    ) -> list[Assumption]:
+    def propose_assumptions(self, ctx: CheckContext, params: TaxBasisParams) -> list[Proposal]:
         percent = f"{(params.rate * 100).normalize():f}%"
-        side, excluding = params.inclusive_side.upper(), other(params.inclusive_side).upper()
+        including = ctx.name(params.inclusive_side)
+        excluding = ctx.name(other(params.inclusive_side))
         return [
-            Assumption.propose(
+            Proposal(
                 "tax_basis.rate",
-                params.rate,
-                f"Side {side} amounts include tax at {percent}; side {excluding} amounts "
-                "exclude it.",
-                proposed_by,
+                {"rate": params.rate, "inclusive": including},
+                f"{including} amounts include {percent} tax and {excluding} amounts exclude it.",
             )
         ]

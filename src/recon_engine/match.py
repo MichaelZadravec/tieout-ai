@@ -25,6 +25,7 @@ from recon_engine.models import (
     Period,
     UnmatchedRow,
     row_id,
+    source_names,
 )
 
 _Key = tuple[Any, ...]
@@ -70,14 +71,14 @@ def _prepare(
     for column in needed:
         if column not in frame.columns:
             raise MatchError(
-                f"side {label} (extract {extract_id}) has no column '{column}'; "
+                f"{label} (extract {extract_id}) has no column '{column}'; "
                 f"available: {list(frame.columns)}"
             )
 
     side = _Side()
     for ordinal, row in enumerate(frame[needed].itertuples(index=False, name=None)):
         rid = row_id(extract_id, ordinal)
-        where = f"side {label} row {rid}"
+        where = f"{label} row {rid}"
         if period is not None and not period.contains(as_date(row[-1], where)):
             side.excluded.append(rid)
             continue
@@ -116,8 +117,11 @@ def match(a: ExtractData, b: ExtractData, spec: MatchSpec) -> MatchResult:
             f"Extracts ({a.extract.id}, {b.extract.id}) do not match the MatchSpec "
             f"({spec.extract_a}, {spec.extract_b})"
         )
-    side_a = _prepare("A", a, spec.key_columns, spec.amount_column, spec.date_column, spec.period)
-    side_b = _prepare("B", b, spec.keys_b, spec.amount_b, spec.date_b, spec.period)
+    name_a, name_b = source_names(a.extract.connection_id, b.extract.connection_id)
+    side_a = _prepare(
+        name_a, a, spec.key_columns, spec.amount_column, spec.date_column, spec.period
+    )
+    side_b = _prepare(name_b, b, spec.keys_b, spec.amount_b, spec.date_b, spec.period)
 
     only_a = list(side_a.unkeyed)
     only_b = list(side_b.unkeyed)

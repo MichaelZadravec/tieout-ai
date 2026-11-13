@@ -18,7 +18,7 @@ import typer
 from recon_engine import __version__
 from recon_engine.assumptions import AssumptionError
 from recon_engine.connections import ConnectionStoreError
-from recon_engine.models import CertificateStatus, Connection, ConnectionType
+from recon_engine.models import CertificateStatus, Connection, ConnectionType, source_names
 from recon_engine.render import money, render_html
 from recon_engine.session import CertificateError, Workspace
 
@@ -158,13 +158,17 @@ def show_certificate(
     out(f"Hash verified: {cert.certificate_hash}")
     out(f"Issued {cert.created_at.isoformat()} by engine {cert.engine_version}")
     out("")
-    out(f"  Side A total   {money(cert.match.total_a):>16}")
-    out(f"  Side B total   {money(cert.match.total_b):>16}")
-    out(f"  Gap            {money(cert.match.gap):>16}")
+    name_a, name_b = source_names(cert.extracts[0].connection_id, cert.extracts[1].connection_id)
+
+    def amount_line(label: str, amount, indent: int = 2, note: str = "") -> None:
+        out(f"{' ' * indent}{label:<{34 - indent}} {money(amount):>16}{note}")
+
+    amount_line(f"{name_a} total", cert.match.total_a)
+    amount_line(f"{name_b} total", cert.match.total_b)
+    amount_line(f"Gap ({name_a} - {name_b})", cert.match.gap)
     for bucket in cert.buckets:
-        label = f"{bucket.check_name} ({bucket.row_count} rows)"
-        out(f"    {label:<30} {money(bucket.amount):>16}")
-    out(f"  Unexplained    {money(cert.residual):>16}  ({len(cert.residual_items)} items)")
+        amount_line(f"{bucket.check_name} ({bucket.row_count} rows)", bucket.amount, indent=4)
+    amount_line("Unexplained", cert.residual, note=f"  ({len(cert.residual_items)} items)")
     quality = sum(1 for i in cert.residual_items if i.kind == "data_quality")
     if quality:
         out(f"    of which {quality} are data-quality items (e.g. empty amounts)")

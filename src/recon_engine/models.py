@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
@@ -57,6 +58,25 @@ class ExtractData:
 def row_id(extract_id: str, ordinal: int) -> str:
     """Stable identifier for a row: its extract plus its 0-based position in that extract."""
     return f"{extract_id}:{ordinal}"
+
+
+def source_names(connection_a: str, connection_b: str) -> tuple[str, str]:
+    """What to call the two sides in anything a person reads: their connection names."""
+    if connection_a == connection_b:
+        return f"{connection_a} (A)", f"{connection_b} (B)"
+    return connection_a, connection_b
+
+
+def key_label(key: Sequence[Any]) -> str:
+    """A key as a person reads it. Blanks show as (blank); edge whitespace is quoted."""
+
+    def part(value: Any) -> str:
+        if value is None:
+            return "(blank)"
+        text = str(value)
+        return f'"{text}"' if text != text.strip() else text
+
+    return " / ".join(part(value) for value in key)
 
 
 class Period(_Model):
@@ -165,14 +185,18 @@ class MatchResult(_Model):
 class Assumption(_Model):
     """A parameter choice that affects the result. Only a human confirms one, via the CLI.
 
-    The id is derived from the parameter and value, so proposing the same thing
-    twice gives the same assumption.
+    `scope` lists the keys (as `key_label` shows them) of the records the
+    assumption covers; it is empty for one about the reconciliation as a whole.
+    The id is derived from the parameter, value and scope, so proposing the same
+    thing twice gives the same assumption, and the same reasoning applied to
+    different records gives a different one.
     """
 
     id: str
     description: str
     parameter: str
     value: Any
+    scope: list[str] = Field(default_factory=list)
     proposed_by: Literal["ai", "human"]
     confirmed: bool = False
     confirmed_by: str | None = None
@@ -185,13 +209,16 @@ class Assumption(_Model):
         value: Any,
         description: str,
         proposed_by: Literal["ai", "human"] = "ai",
+        scope: Sequence[str] = (),
     ) -> Assumption:
-        digest = sha256_hex(canonical_json([parameter, value]))
+        basis = [parameter, value, list(scope)] if scope else [parameter, value]
+        digest = sha256_hex(canonical_json(basis))
         return cls(
             id=f"asm_{digest[:12]}",
             description=description,
             parameter=parameter,
             value=value,
+            scope=list(scope),
             proposed_by=proposed_by,
         )
 

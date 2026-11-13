@@ -107,17 +107,14 @@ def test_checks_with_no_findings_get_a_compact_line_and_no_warning():
     manifest, ctx = fixture_context("clean", store)
     plan = [*plan_for("clean", manifest), ("duplicates", {"side": "b"})]
     buckets = run_checks(ctx, plan)
-    used = {i for b in buckets[:-1] for i in b.assumption_ids}
-    for assumption_id in used:
-        store.confirm(assumption_id, "Jane CFO", at=NOW)
-    unused = [i for i in buckets[-1].assumption_ids if i not in used]
+    for assumption in store.all():
+        store.confirm(assumption.id, "Jane CFO", at=NOW)
     html = render_html(certify(ctx, buckets, now=NOW))
 
-    assert unused  # the empty bucket's own assumption was never confirmed...
+    assert buckets[-1].assumption_ids == []  # the empty bucket assumed nothing...
     assert "Checks with no findings" in html
     assert "side=b" in html
-    assert "Unconfirmed assumptions" not in html  # ...and raises no warning
-    assert all(i not in html for i in unused)
+    assert "Unconfirmed assumptions" not in html  # ...so it raises no warning
     assert "RECONCILED" in html
 
 

@@ -16,13 +16,12 @@ from recon_engine.checks.base import (
     CheckParams,
     Claim,
     Item,
-    ProposedBy,
+    Proposal,
     Side,
     other,
     register,
 )
 from recon_engine.hashing import canonical_value
-from recon_engine.models import Assumption
 
 
 class StatusFilterParams(CheckParams):
@@ -57,16 +56,18 @@ class StatusFilterCheck(Check):
                 claims.append(Claim(item))
         return claims
 
-    def propose_assumptions(
-        self, ctx: CheckContext, params: StatusFilterParams, proposed_by: ProposedBy
-    ) -> list[Assumption]:
-        side, excluding = params.side.upper(), other(params.side).upper()
+    def propose_assumptions(self, ctx: CheckContext, params: StatusFilterParams) -> list[Proposal]:
+        including, excluding = ctx.name(params.side), ctx.name(other(params.side))
+        statuses = ", ".join(repr(s) for s in params.statuses)
         return [
-            Assumption.propose(
+            Proposal(
                 "status_filter.statuses",
-                params.statuses,
-                f"Side {side} includes rows whose '{params.status_column}' is one of "
-                f"{params.statuses}; side {excluding} excludes them.",
-                proposed_by,
+                {
+                    "included_by": including,
+                    "column": params.status_column,
+                    "statuses": params.statuses,
+                },
+                f"{including} includes them with '{params.status_column}' of {statuses}, and "
+                f"{excluding} excludes them.",
             )
         ]

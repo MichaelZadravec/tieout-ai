@@ -232,7 +232,11 @@ def test_buckets_record_parameters_and_assumptions(ctx):
     assert bucket.parameters == {"side": "a", "status_column": "status", "statuses": ["VOIDED"]}
     [assumption] = ctx.assumptions.get_many(bucket.assumption_ids)
     assert assumption.parameter == "status_filter.statuses"
-    assert assumption.value == ["VOIDED"]
+    assert assumption.value == {
+        "included_by": "dashboard",
+        "column": "status",
+        "statuses": ["VOIDED"],
+    }
     assert assumption.proposed_by == "ai"
     assert assumption.confirmed is False
     assert assumption.confirmed_by is None
@@ -320,10 +324,7 @@ def test_duplicates_compare_every_column_by_default():
     bucket = get_check("duplicates").run(ctx, {"side": "a"})
 
     assert bucket.item_ids == []
-    [basis] = [
-        a for a in ctx.assumptions.get_many(bucket.assumption_ids) if "compare" in a.parameter
-    ]
-    assert basis.value == LOADED
+    assert bucket.assumption_ids == []  # nothing proven, so nothing assumed
 
 
 def test_duplicates_compare_columns_ignores_columns_left_out():

@@ -228,6 +228,8 @@ class ReconService:
         result = session.context.result
         return {
             "reconciliation_id": reconciliation_id,
+            "a": session.context.name("a"),
+            "b": session.context.name("b"),
             **_json(
                 {
                     "total_a": result.total_a,

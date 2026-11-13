@@ -22,13 +22,12 @@ from recon_engine.checks.base import (
     CheckParams,
     Claim,
     Item,
-    ProposedBy,
+    Proposal,
     Side,
     other,
     register,
 )
 from recon_engine.hashing import canonical_value
-from recon_engine.models import Assumption
 
 
 class SignCreditParams(CheckParams):
@@ -93,27 +92,24 @@ class SignCreditCheck(Check):
                 claims.append(Claim(item))
         return claims
 
-    def propose_assumptions(
-        self, ctx: CheckContext, params: SignCreditParams, proposed_by: ProposedBy
-    ) -> list[Assumption]:
+    def propose_assumptions(self, ctx: CheckContext, params: SignCreditParams) -> list[Proposal]:
         if params.mode == "sign_flip":
             return [
-                Assumption.propose(
+                Proposal(
                     "sign_credit.sign_flip",
                     True,
-                    "Amounts equal and opposite on the two sides are the same document "
-                    "recorded with opposite sign conventions.",
-                    proposed_by,
+                    f"the amounts in {ctx.name('a')} and {ctx.name('b')} are equal and "
+                    "opposite: the same document recorded with opposite sign conventions.",
                 )
             ]
-        assert params.side is not None
-        side, missing = params.side.upper(), other(params.side).upper()
+        assert params.side is not None and params.credit_types is not None
+        having, missing = ctx.name(params.side), ctx.name(other(params.side))
+        types = ", ".join(repr(t) for t in params.credit_types)
         return [
-            Assumption.propose(
+            Proposal(
                 "sign_credit.credit_types",
-                params.credit_types,
-                f"Side {side} rows with a negative amount and '{params.type_column}' in "
-                f"{params.credit_types} are credit notes that side {missing} does not include.",
-                proposed_by,
+                {"in": having, "column": params.type_column, "types": params.credit_types},
+                f"the {having} rows, with a negative amount and '{params.type_column}' of "
+                f"{types}, are credit notes that {missing} does not include.",
             )
         ]

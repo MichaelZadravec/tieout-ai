@@ -124,7 +124,8 @@ def build_server(workspace: Workspace | None = None) -> MCPServer:
     ) -> dict[str, Any]:
         """Match two extracts row by row and compute the gap (total A minus total B).
 
-        Columns named for side A apply to side B unless the `_b` versions are given.
+        Columns named for extract A apply to extract B unless the `_b` versions are given.
+        Results and certificates call each side by its connection name.
         A period (ISO dates, inclusive) needs date_column. Returns a reconciliation_id.
         """
         return service.match(

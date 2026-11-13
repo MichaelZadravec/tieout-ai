@@ -22,14 +22,14 @@ from recon_engine.checks.base import (
     CheckParams,
     Claim,
     Item,
-    ProposedBy,
+    Proposal,
     Side,
     other,
     register,
 )
 from recon_engine.hashing import canonical_value, to_decimal
 from recon_engine.match import as_date
-from recon_engine.models import Assumption, Period
+from recon_engine.models import Period
 
 
 class TimingParams(CheckParams):
@@ -85,24 +85,22 @@ class TimingCheck(Check):
                         break
         return claims
 
-    def propose_assumptions(
-        self, ctx: CheckContext, params: TimingParams, proposed_by: ProposedBy
-    ) -> list[Assumption]:
+    def propose_assumptions(self, ctx: CheckContext, params: TimingParams) -> list[Proposal]:
         days = params.max_shift_days
+        a, b = ctx.name("a"), ctx.name("b")
         return [
-            Assumption.propose(
+            Proposal(
                 "timing.max_shift_days",
                 days,
-                f"A row dated inside the period on one side and up to {days} days outside it "
-                "on the other, with the same key and amount, is one transaction recorded on a "
-                "different date basis.",
-                proposed_by,
+                f"each is dated inside the period in one of {a} and {b} and up to {days} days "
+                "outside it in the other, with the same key and amount: one transaction "
+                "recorded on a different date basis.",
             ),
-            Assumption.propose(
+            Proposal(
                 "timing.date_basis",
-                [ctx.spec.date_column, ctx.spec.date_b],
-                f"Side A is dated by '{ctx.spec.date_column}' and side B by '{ctx.spec.date_b}'.",
-                proposed_by,
+                {a: ctx.spec.date_column, b: ctx.spec.date_b},
+                f"{a} dates the transaction by '{ctx.spec.date_column}' and {b} by "
+                f"'{ctx.spec.date_b}'.",
             ),
         ]
 

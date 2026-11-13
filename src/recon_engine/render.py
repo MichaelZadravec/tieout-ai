@@ -14,17 +14,13 @@ from recon_engine.models import (
     CertificateStatus,
     Extract,
     ResidualItem,
+    key_label,
+    source_names,
 )
 
 MAX_RESIDUAL_ROWS = 200
 MINUS = chr(0x2212)  # a true minus sign, not a hyphen
 
-_KIND = {
-    "only_a": "Only in A",
-    "only_b": "Only in B",
-    "difference": "Amounts differ",
-    "data_quality": "Data quality",
-}
 
 _BADGE = {
     CertificateStatus.RECONCILED: "ok",
@@ -86,16 +82,8 @@ def _e(value: object) -> str:
     return escape(str(value), quote=True)
 
 
-def _key_part(part: object) -> str:
-    if part is None:
-        return "(blank)"
-    text = str(part)
-    # Quote values with edge whitespace, so a reader can see why they did not match.
-    return f'"{text}"' if text != text.strip() else text
-
-
-def _key(key: list) -> str:
-    return " / ".join(_key_part(part) for part in key)
+def _names(cert: Certificate) -> tuple[str, str]:
+    return source_names(cert.extracts[0].connection_id, cert.extracts[1].connection_id)
 
 
 def _assumption_state(a: Assumption) -> str:
@@ -105,9 +93,14 @@ def _assumption_state(a: Assumption) -> str:
     return '<span class="state unconfirmed">Unconfirmed</span>'
 
 
-def _where(item: ResidualItem) -> str:
-    label = _KIND[item.kind]
-    return f"{label}: {_e(item.reason)}" if item.reason else label
+def _where(item: ResidualItem, names: tuple[str, str]) -> str:
+    label = {
+        "only_a": f"Only in {names[0]}",
+        "only_b": f"Only in {names[1]}",
+        "difference": "Amounts differ",
+        "data_quality": "Data quality",
+    }[item.kind]
+    return f"{_e(label)}: {_e(item.reason)}" if item.reason else _e(label)
 
 
 def _params(parameters: dict) -> str:
@@ -127,11 +120,11 @@ def _no_findings(cert: Certificate) -> str:
     return f'<p class="quiet"><strong>Checks with no findings:</strong> {runs}</p>'
 
 
-def _source(label: str, extract: Extract) -> str:
+def _source(name: str, extract: Extract) -> str:
     totals = ", ".join(f"{_e(k)} = {_e(money(v))}" for k, v in extract.column_totals.items())
     return f"""
 <div class="source">
-  <strong>Side {label}</strong> · connection <code>{_e(extract.connection_id)}</code>
+  <strong>{_e(name)}</strong> · connection <code>{_e(extract.connection_id)}</code>
   <pre>{_e(extract.query_text)}</pre>
   <dl>
     <dt>Rows</dt><dd>{extract.row_count:,}</dd>
@@ -151,6 +144,7 @@ def render_html(cert: Certificate) -> str:
         else "no period filter"
     )
     by_id = {a.id: a for a in cert.assumptions}
+    name_a, name_b = _names(cert)
     unconfirmed = len(cert.unconfirmed_assumptions)
 
     if unconfirmed:
@@ -191,7 +185,7 @@ def render_html(cert: Certificate) -> str:
     {bucket_rows or '<tr><td colspan="3" class="meta">No explanations were proven.</td></tr>'}
     <tr class="{residual_class}"><td>Unexplained (residual), {len(cert.residual_items):,} items</td>
       <td class="num"></td><td class="num">{money(cert.residual)}</td></tr>
-    <tr class="total"><td>Gap (A &minus; B)</td><td class="num"></td>
+    <tr class="total"><td>Gap ({_e(name_a)} &minus; {_e(name_b)})</td><td class="num"></td>
       <td class="num">{money(cert.match.gap)}</td></tr>
   </tbody>
 </table>{_no_findings(cert)}"""
@@ -214,7 +208,7 @@ def render_html(cert: Certificate) -> str:
     if cert.residual_items:
         shown = cert.residual_items[:MAX_RESIDUAL_ROWS]
         rows = "".join(
-            f"""<tr><td>{_e(_key(i.key))}</td><td>{_where(i)}</td>
+            f"""<tr><td>{_e(key_label(i.key))}</td><td>{_where(i, (name_a, name_b))}</td>
   <td class="num">{"amount missing" if i.kind == "data_quality" else money(i.amount)}</td></tr>"""
             for i in shown
         )
@@ -231,7 +225,7 @@ def render_html(cert: Certificate) -> str:
     status_badge = f'<span class="badge {_BADGE[cert.status]}">{cert.status.value}</span>'
     supersedes = f" · supersedes {_e(cert.supersedes)}" if cert.supersedes else ""
     residual_tile = "residual" + ("" if cert.residual == 0 else " nonzero")
-    keys_b = ", ".join(spec.keys_b)
+    a, b = _e(name_a), _e(name_b)
     return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -246,8 +240,8 @@ def render_html(cert: Certificate) -> str:
   <div class="meta">{_e(cert.id)} · issued {_e(cert.created_at.isoformat())} · period {_e(period)}{supersedes}</div>
   {banner}
   <div class="tiles">
-    <div class="tile"><div class="label">Side A total</div><div class="value">{money(cert.match.total_a)}</div></div>
-    <div class="tile"><div class="label">Side B total</div><div class="value">{money(cert.match.total_b)}</div></div>
+    <div class="tile"><div class="label">{_e(name_a)} total</div><div class="value">{money(cert.match.total_a)}</div></div>
+    <div class="tile"><div class="label">{_e(name_b)} total</div><div class="value">{money(cert.match.total_b)}</div></div>
     <div class="tile"><div class="label">Gap</div><div class="value">{money(cert.match.gap)}</div></div>
     <div class="tile"><div class="label">Explained</div><div class="value">{money(cert.explained)}</div></div>
     <div class="tile {residual_tile}"><div class="label">Unexplained</div><div class="value">{money(cert.residual)}</div></div>
@@ -259,17 +253,17 @@ def render_html(cert: Certificate) -> str:
   {residual_section}
 
   <h2>Sources</h2>
-  {_source("A", cert.extracts[0])}
-  {_source("B", cert.extracts[1])}
+  {_source(name_a, cert.extracts[0])}
+  {_source(name_b, cert.extracts[1])}
 
   <h2>Matching</h2>
   <dl>
-    <dt>Keys</dt><dd>A: {_e(", ".join(spec.key_columns))} · B: {_e(keys_b)}</dd>
-    <dt>Amounts</dt><dd>A: {_e(spec.amount_column)} · B: {_e(spec.amount_b)}</dd>
-    <dt>Dates</dt><dd>A: {_e(spec.date_column or "none")} · B: {_e(spec.date_b or "none")}</dd>
+    <dt>Keys</dt><dd>{a}: {_e(", ".join(spec.key_columns))} · {b}: {_e(", ".join(spec.keys_b))}</dd>
+    <dt>Amounts</dt><dd>{a}: {_e(spec.amount_column)} · {b}: {_e(spec.amount_b)}</dd>
+    <dt>Dates</dt><dd>{a}: {_e(spec.date_column or "none")} · {b}: {_e(spec.date_b or "none")}</dd>
     <dt>Matched keys</dt><dd>{cert.match.matched_count:,}</dd>
-    <dt>Outside period</dt><dd>A: {cert.match.excluded_a_count:,} · B: {cert.match.excluded_b_count:,} rows</dd>
-    <dt>Unusable rows</dt><dd>A: {cert.match.invalid_a_count:,} · B: {cert.match.invalid_b_count:,} (listed as data quality)</dd>
+    <dt>Outside period</dt><dd>{a}: {cert.match.excluded_a_count:,} · {b}: {cert.match.excluded_b_count:,} rows</dd>
+    <dt>Unusable rows</dt><dd>{a}: {cert.match.invalid_a_count:,} · {b}: {cert.match.invalid_b_count:,} (listed as data quality)</dd>
   </dl>
 
   <footer>

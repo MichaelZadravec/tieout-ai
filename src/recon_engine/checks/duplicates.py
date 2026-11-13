@@ -22,12 +22,12 @@ from recon_engine.checks.base import (
     CheckParams,
     Claim,
     Item,
-    ProposedBy,
+    Proposal,
     Side,
+    other,
     register,
 )
 from recon_engine.hashing import canonical_json, to_decimal
-from recon_engine.models import Assumption
 
 
 class DuplicatesParams(CheckParams):
@@ -83,10 +83,8 @@ class DuplicatesCheck(Check):
                 claims.append(Claim(item))
         return claims
 
-    def propose_assumptions(
-        self, ctx: CheckContext, params: DuplicatesParams, proposed_by: ProposedBy
-    ) -> list[Assumption]:
-        side = params.side.upper()
+    def propose_assumptions(self, ctx: CheckContext, params: DuplicatesParams) -> list[Proposal]:
+        repeating, once = ctx.name(params.side), ctx.name(other(params.side))
         compared = _compared(ctx, params)
         ignored = [c for c in ctx.data(params.side).extract.columns if c not in compared]
         basis = (
@@ -95,16 +93,15 @@ class DuplicatesCheck(Check):
             else "identical in every column"
         )
         return [
-            Assumption.propose(
+            Proposal(
                 "duplicates.side",
-                params.side,
-                f"Repeated rows on side {side} are duplicate copies of one transaction.",
-                proposed_by,
+                repeating,
+                f"the repeated rows in {repeating} are copies of one transaction that {once} "
+                "records once.",
             ),
-            Assumption.propose(
+            Proposal(
                 "duplicates.compare_columns",
                 compared,
-                f"Rows on side {side} count as copies when they are {basis}.",
-                proposed_by,
+                f"rows in {repeating} count as copies when they are {basis}.",
             ),
         ]

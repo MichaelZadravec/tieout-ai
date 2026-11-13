@@ -110,8 +110,8 @@ def test_checks_with_no_findings_are_listed_without_their_assumptions():
     [empty] = cert.checks_without_findings
     assert empty.check_name == "tax_basis"
     assert empty.parameters == {"rate": "0.15", "inclusive_side": "b"}
-    assert buckets[-1].assumption_ids[0] not in cert.unconfirmed_assumptions
-    assert buckets[-1].assumption_ids[0] not in {a.id for a in cert.assumptions}
+    assert buckets[-1].assumption_ids == []
+    assert len(cert.assumptions) == sum(len(b.assumption_ids) for b in cert.buckets)
 
 
 def test_the_hash_verifies_and_survives_a_json_round_trip():

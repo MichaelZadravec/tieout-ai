@@ -4,6 +4,8 @@ A match leaves a set of discrepancy *items* whose amounts sum exactly to the gap
 
 - each row only on side A           (contributes +amount)
 - each row only on side B           (contributes -amount)
+
+(Code says side A and B; anything a person reads uses the connection names.)
 - each key whose amounts disagree   (contributes amount_a - amount_b)
 - each row that could not be used   (data quality: contributes 0, but is still
   unexplained, so it keeps the reconciliation open)
@@ -26,7 +28,15 @@ from pydantic import BaseModel, ConfigDict, ValidationError
 
 from recon_engine.assumptions import AssumptionStore
 from recon_engine.hashing import canonical_json
-from recon_engine.models import Assumption, Bucket, ExtractData, MatchResult, MatchSpec
+from recon_engine.models import (
+    Assumption,
+    Bucket,
+    ExtractData,
+    MatchResult,
+    MatchSpec,
+    key_label,
+    source_names,
+)
 
 Side = Literal["a", "b"]
 ProposedBy = Literal["ai", "human"]
@@ -69,6 +79,29 @@ class Claim:
 
     item: Item
     evidence: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class Proposal:
+    """An assumption a check's claims rest on.
+
+    `statement` completes "For these N records (...), "; the engine adds that
+    scope from the claimed items, so no assumption reads broader than its proof.
+    """
+
+    parameter: str
+    value: Any
+    statement: str
+
+
+MAX_LISTED_KEYS = 5
+
+
+def scope_phrase(keys: Sequence[str]) -> str:
+    if len(keys) == 1:
+        return f"For this record ({keys[0]})"
+    listed = ", ".join(keys) if len(keys) <= MAX_LISTED_KEYS else f"{keys[0]} … {keys[-1]}"
+    return f"For these {len(keys)} records ({listed})"
 
 
 def discrepancy_items(result: MatchResult) -> list[Item]:
@@ -163,6 +196,11 @@ class CheckContext:
     def data(self, side: Side) -> ExtractData:
         return self.a if side == "a" else self.b
 
+    def name(self, side: Side) -> str:
+        """The side's connection name, as people should read it."""
+        names = source_names(self.a.extract.connection_id, self.b.extract.connection_id)
+        return names[0] if side == "a" else names[1]
+
     def key_columns(self, side: Side) -> list[str]:
         return self.spec.key_columns if side == "a" else self.spec.keys_b
 
@@ -179,7 +217,7 @@ class CheckContext:
         columns = self.data(side).extract.columns
         if column not in columns:
             raise CheckParameterError(
-                f"side {side.upper()} has no column '{column}'; available: {columns}"
+                f"{self.name(side)} has no column '{column}'; available: {columns}"
             )
 
     def _locate(self, row_id: str) -> tuple[ExtractData, int]:
@@ -240,6 +278,18 @@ class Check(ABC):
 
         row_ids = [row for claim in claims for row in claim.item.row_ids]
         evidence = list(dict.fromkeys(row for claim in claims for row in claim.evidence))
+        assumption_ids = []
+        if claims:  # a hypothesis that proved nothing rests on nothing
+            scope = sorted({key_label(claim.item.key) for claim in claims})
+            for proposal in self.propose_assumptions(ctx, validated):
+                assumption = Assumption.propose(
+                    proposal.parameter,
+                    proposal.value,
+                    f"{scope_phrase(scope)}, {proposal.statement}",
+                    proposed_by,
+                    scope=scope,
+                )
+                assumption_ids.append(ctx.assumptions.propose(assumption).id)
         return Bucket(
             check_name=self.name,
             check_version=self.version,
@@ -249,19 +299,15 @@ class Check(ABC):
             evidence_row_ids=evidence,
             amount=sum((claim.item.amount for claim in claims), Decimal(0)),
             row_count=len(row_ids),
-            assumption_ids=[
-                ctx.assumptions.propose(a).id
-                for a in self.propose_assumptions(ctx, validated, proposed_by)
-            ],
+            assumption_ids=assumption_ids,
         )
 
     @abstractmethod
     def prove(self, ctx: CheckContext, items: list[Item], params: Any) -> Iterable[Claim | Item]:
         """Return the open items this hypothesis proves. Return nothing if it is wrong."""
 
-    def propose_assumptions(
-        self, ctx: CheckContext, params: Any, proposed_by: ProposedBy
-    ) -> list[Assumption]:
+    def propose_assumptions(self, ctx: CheckContext, params: Any) -> list[Proposal]:
+        """What the claims rest on. Called only when the check claimed something."""
         return []
 
 

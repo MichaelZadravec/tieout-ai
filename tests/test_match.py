@@ -155,7 +155,7 @@ def test_rows_with_a_missing_key_never_match():
 
 def test_missing_column_is_a_clear_error():
     a, b = make_extract(INVOICES, "a"), make_extract(INVOICES, "b")
-    with pytest.raises(MatchError, match=r"side B .* has no column 'total'"):
+    with pytest.raises(MatchError, match=r"^b \(extract .*\) has no column 'total'"):
         match(a, b, spec_for(a, b, amount_column_b="total"))
 
 
