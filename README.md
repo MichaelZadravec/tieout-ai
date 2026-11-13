@@ -125,6 +125,17 @@ After checking the file, a person re-registers it, interactively, with:
 uv run recon connections refresh <connection_id>
 ```
 
+## SQL must not truncate, and its filters are assumptions
+
+A SQL extract must return every row it selects: `LIMIT`, `TOP`, `OFFSET`,
+`FETCH`, `SAMPLE` and `TABLESAMPLE` are refused. Every other way a query leaves
+rows out (each AND-ed part of a `WHERE` or `HAVING`, each `JOIN`, `DISTINCT`, a
+de-duplicating `UNION`, `EXCEPT`, `INTERSECT`) is recorded on the extract and
+becomes an assumption, worded in plain English with the SQL fragment, as soon as
+the extract is matched. A `WHERE` that only limits rows to the reconciliation
+period is a normal assumption; anything else is elevated. Either way a person
+must confirm it before the certificate can be RECONCILED.
+
 ## Confirming assumptions (people only)
 
 `recon confirm` runs only in an interactive terminal and asks you to retype a

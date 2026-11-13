@@ -16,9 +16,17 @@ from typing import Any
 from recon_engine.assumptions import AssumptionStore
 from recon_engine.certify import certify, verify_certificate_document
 from recon_engine.checks import CheckContext, ProposedBy, get_check
+from recon_engine.checks.base import Side
 from recon_engine.connections import ConnectionStore
 from recon_engine.match import match
-from recon_engine.models import Assumption, Bucket, Certificate, ExtractData, MatchSpec
+from recon_engine.models import (
+    Assumption,
+    Bucket,
+    Certificate,
+    ExtractData,
+    MatchSpec,
+    QueryFilter,
+)
 
 
 class CertificateError(Exception):
@@ -64,10 +72,20 @@ class Session:
     """One reconciliation. Checks run in order and never reclaim earlier claims.
 
     Each certificate issued by a session supersedes the one it issued before.
+
+    Every way a SQL extract's query leaves rows out becomes an assumption of the
+    reconciliation as soon as it starts: a filter only to the reconciliation
+    period is a normal one, anything else is elevated. Either way a person must
+    confirm it before the certificate can be RECONCILED.
     """
 
     def __init__(
-        self, workspace: Workspace, a: ExtractData, b: ExtractData, spec: MatchSpec
+        self,
+        workspace: Workspace,
+        a: ExtractData,
+        b: ExtractData,
+        spec: MatchSpec,
+        proposed_by: ProposedBy = "ai",
     ) -> None:
         self.workspace = workspace
         self.context = CheckContext(
@@ -76,6 +94,46 @@ class Session:
         self.buckets: list[Bucket] = []
         self.assumption_ids: list[str] = []
         self.last_certificate: str | None = None
+        for side in ("a", "b"):
+            for query_filter in self.context.data(side).extract.query_filters:
+                self._propose_filter(side, query_filter, proposed_by)
+
+    def _propose_filter(
+        self, side: Side, query_filter: QueryFilter, proposed_by: ProposedBy
+    ) -> None:
+        extract = self.context.data(side).extract
+        name = self.context.name(side)
+        period = self.context.spec.period
+        to_period = (
+            query_filter.clause == "WHERE"
+            and period is not None
+            and query_filter.date_column is not None
+            and query_filter.date_column == self.context.date_column(side)
+            and (query_filter.earliest is None or query_filter.earliest <= period.start)
+            and (query_filter.latest is None or query_filter.latest >= period.end)
+        )
+        what = {
+            "WHERE": f"keeps only rows where {query_filter.plain}",
+            "HAVING": f"keeps only groups where {query_filter.plain}",
+        }.get(query_filter.clause, query_filter.plain)
+        description = f"The {name} query {what}. SQL: {query_filter.sql}"
+        if to_period:
+            description += " (this only limits it to the reconciliation period)"
+        self.propose_assumption(
+            "query.filter",
+            {
+                "connection": extract.connection_id,
+                "query_hash": extract.query_hash,
+                "clause": query_filter.clause,
+                "sql": query_filter.sql,
+            },
+            description,
+            proposed_by,
+            elevated_reason=None
+            if to_period
+            else f"loosens the default: the {name} query leaves out rows beyond the "
+            f"reconciliation period ({query_filter.clause} {query_filter.sql})",
+        )
 
     def run_check(
         self, name: str, params: dict[str, Any], proposed_by: ProposedBy = "ai"
@@ -86,11 +144,18 @@ class Session:
         return bucket
 
     def propose_assumption(
-        self, parameter: str, value: Any, description: str, proposed_by: ProposedBy = "ai"
+        self,
+        parameter: str,
+        value: Any,
+        description: str,
+        proposed_by: ProposedBy = "ai",
+        elevated_reason: str | None = None,
     ) -> Assumption:
         """An assumption about the reconciliation as a whole (scope, filters, sources)."""
         assumption = self.workspace.assumptions.propose(
-            Assumption.propose(parameter, value, description, proposed_by)
+            Assumption.propose(
+                parameter, value, description, proposed_by, elevated_reason=elevated_reason
+            )
         )
         if assumption.id not in self.assumption_ids:
             self.assumption_ids.append(assumption.id)

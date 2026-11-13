@@ -33,6 +33,24 @@ class Connection(_Model):
     config: dict[str, Any] = Field(default_factory=dict, exclude=True, repr=False)
 
 
+class QueryFilter(_Model):
+    """One way a SQL query leaves rows out: a WHERE or HAVING condition (each AND-ed
+    part separately), a JOIN, DISTINCT, or a de-duplicating set operation.
+
+    `sql` is the fragment as written; `plain` says it in words where possible. For
+    a top-level WHERE comparing a column with dates, `date_column`, `earliest` and
+    `latest` give the range of days it keeps, so it can be recognised as a filter
+    to the reconciliation period.
+    """
+
+    clause: Literal["WHERE", "HAVING", "JOIN", "DISTINCT", "UNION", "EXCEPT", "INTERSECT"]
+    sql: str
+    plain: str
+    date_column: str | None = None
+    earliest: date | None = None
+    latest: date | None = None
+
+
 class Extract(_Model):
     """Provenance of one fetch: what was asked, of which source, and what came back."""
 
@@ -49,6 +67,8 @@ class Extract(_Model):
     # a warning for a person when the source cannot be trusted as registered.
     changed_since_registration: bool = False
     source_warning: str | None = None
+    # SQL sources: every way the query leaves rows out. Each becomes an assumption.
+    query_filters: list[QueryFilter] = Field(default_factory=list)
 
 
 @dataclass(frozen=True)

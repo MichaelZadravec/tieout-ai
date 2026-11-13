@@ -43,6 +43,11 @@ Rules:
 - You cannot confirm assumptions. A PROVISIONAL certificate needs a person to run
   `recon confirm <id>` in a terminal. Say so; do not try to work around it.
 - Report unexplained differences honestly; do not force a residual to zero.
+- SQL must return every row: LIMIT, TOP, OFFSET, FETCH and SAMPLE are refused.
+  Every WHERE, HAVING, JOIN, DISTINCT or UNION becomes an assumption a person
+  must confirm; any filter beyond the reconciliation period is elevated.
+- A source_warning (e.g. a file changed since a person registered it) keeps the
+  certificate OPEN. Report it; only a person can check and refresh the source.
 """
 
 _ENGINE_ERRORS = (
@@ -97,8 +102,10 @@ def build_server(workspace: Workspace | None = None) -> MCPServer:
     def run_query(connection_id: str, query: str | None = None) -> dict[str, Any]:
         """Fetch an extract. Returns its ID, row count, column totals and hashes (not rows).
 
-        `query` is a single read-only SELECT for SQL connections (anything else is
-        refused), a sheet name for Excel files, and omitted for CSV.
+        `query` is a single read-only SELECT for SQL connections (anything else, and
+        anything that truncates rows, is refused), a sheet name for Excel files, and
+        omitted for CSV. The result lists the query's filters, each of which becomes an
+        assumption when the extract is matched, and any source warning.
         """
         return service.run_query(connection_id, query)
 

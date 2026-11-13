@@ -57,6 +57,9 @@ def _extract_summary(extract: Extract) -> dict[str, Any]:
             "fetched_at": extract.fetched_at,
             "changed_since_registration": extract.changed_since_registration,
             "source_warning": extract.source_warning,
+            "query_filters": [
+                {"clause": f.clause, "sql": f.sql, "plain": f.plain} for f in extract.query_filters
+            ],
         }
     )
 
@@ -225,12 +228,17 @@ class ReconService:
             date_column_b=date_column_b,
             period=Period(start=period_start, end=period_end) if period_start else None,
         )
-        session = Session(self.workspace, a, b, spec)
+        session = Session(self.workspace, a, b, spec, proposed_by="ai")
         reconciliation_id = f"rec_{uuid.uuid4().hex[:10]}"
         self.sessions[reconciliation_id] = session
         result = session.context.result
+        query_assumptions = self.workspace.assumptions.get_many(session.assumption_ids)
         return {
             "reconciliation_id": reconciliation_id,
+            "query_filter_assumptions": [
+                {"id": q.id, "description": q.description, "elevated": q.elevated}
+                for q in query_assumptions
+            ],
             "a": session.context.name("a"),
             "b": session.context.name("b"),
             **_json(
