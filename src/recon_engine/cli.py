@@ -121,10 +121,25 @@ def list_assumptions(ctx: typer.Context) -> None:
     if not assumptions:
         typer.echo("No assumptions yet.")
         return
-    for a in assumptions:
+    elevated = [a for a in assumptions if a.elevated]
+    others = [a for a in assumptions if not a.elevated]
+
+    def show(a) -> None:
         state = f"confirmed by {a.confirmed_by}" if a.confirmed else "unconfirmed"
         typer.echo(f"{a.id}  [{state}]  proposed by {a.proposed_by}")
+        if a.elevated:
+            typer.echo(f"    ELEVATED: {a.elevated_reason}")
         typer.echo(f"    {a.description}")
+
+    if elevated:
+        typer.echo("ELEVATED (these loosen a check's default; review them first)")
+        for a in elevated:
+            show(a)
+        if others:
+            typer.echo("")
+            typer.echo("Other assumptions")
+    for a in others:
+        show(a)
 
 
 @cert_app.command("list")
@@ -185,9 +200,11 @@ def show_certificate(
     else:
         out("All assumptions were confirmed when this certificate was issued.")
     current = workspace.assumptions
-    for a in cert.assumptions:
+    for a in sorted(cert.assumptions, key=lambda a: not a.elevated):
         mark = "confirmed" if a.confirmed else "UNCONFIRMED"
         out(f"  {a.id} [{mark}] {a.description}")
+        if a.elevated:
+            out(f"    ELEVATED: {a.elevated_reason}")
         if not a.confirmed and a.id in current and current.get(a.id).confirmed:
             out(
                 f"    (confirmed since this certificate was issued, by "

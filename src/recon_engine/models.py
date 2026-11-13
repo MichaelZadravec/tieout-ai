@@ -190,6 +190,10 @@ class Assumption(_Model):
     The id is derived from the parameter, value and scope, so proposing the same
     thing twice gives the same assumption, and the same reasoning applied to
     different records gives a different one.
+
+    `elevated` marks a parameter that loosens a check's default (a narrower
+    comparison, a wider window, a tolerance); `elevated_reason` says how, in one
+    line. Elevated assumptions are shown first so a reviewer weighs them most.
     """
 
     id: str
@@ -197,6 +201,8 @@ class Assumption(_Model):
     parameter: str
     value: Any
     scope: list[str] = Field(default_factory=list)
+    elevated: bool = False
+    elevated_reason: str | None = None
     proposed_by: Literal["ai", "human"]
     confirmed: bool = False
     confirmed_by: str | None = None
@@ -210,6 +216,7 @@ class Assumption(_Model):
         description: str,
         proposed_by: Literal["ai", "human"] = "ai",
         scope: Sequence[str] = (),
+        elevated_reason: str | None = None,
     ) -> Assumption:
         basis = [parameter, value, list(scope)] if scope else [parameter, value]
         digest = sha256_hex(canonical_json(basis))
@@ -219,6 +226,8 @@ class Assumption(_Model):
             parameter=parameter,
             value=value,
             scope=list(scope),
+            elevated=elevated_reason is not None,
+            elevated_reason=elevated_reason,
             proposed_by=proposed_by,
         )
 

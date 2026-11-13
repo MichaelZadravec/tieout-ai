@@ -8,7 +8,7 @@ recorded on two different dates could be claimed as a copy.
 
 `compare_columns` lets a reviewer treat rows that differ only in load metadata
 (a load ID, an export timestamp) as duplicates. The columns compared, and so the
-ones ignored, are logged as an assumption.
+ones ignored, are logged as an elevated assumption.
 """
 
 from __future__ import annotations
@@ -112,5 +112,10 @@ class DuplicatesCheck(Check):
                 "duplicates.compare_columns",
                 compared,
                 f"rows in {repeating} count as copies when they are {basis}.",
+                loosens=(
+                    f"loosens the default: ignores columns {', '.join(ignored)}"
+                    if ignored
+                    else None
+                ),
             ),
         ]

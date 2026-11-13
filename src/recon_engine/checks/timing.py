@@ -2,7 +2,8 @@
 
 Typical cause: one system dates by appointment, the other by invoice date.
 
-Guardrails: the window is at most one period; the counterpart must have the same
+Guardrails: the window is at most one period (default 7 days; anything wider is
+logged as an elevated assumption); the counterpart must have the same
 key and the same amount, and must be dated in the period immediately before or
 after. Each counterpart row can prove only one item.
 """
@@ -31,12 +32,16 @@ from recon_engine.hashing import canonical_value, to_decimal
 from recon_engine.match import as_date
 from recon_engine.models import Period
 
+DEFAULT_SHIFT_DAYS = 7
+
 
 class TimingParams(CheckParams):
     max_shift_days: int = Field(
+        default=DEFAULT_SHIFT_DAYS,
         ge=1,
         description="Largest number of days between the two sides' dates for one row. "
-        "At most the length of the period.",
+        f"At most the length of the period. Default {DEFAULT_SHIFT_DAYS}; a wider window is "
+        "logged as an elevated assumption.",
     )
 
 
@@ -46,7 +51,7 @@ Counterparts = dict[tuple, list[tuple[str, Decimal, date]]]
 @register
 class TimingCheck(Check):
     name = "timing"
-    version = "1.0.0"
+    version = "1.1.0"
     description = (
         "Rows inside the period on one side whose counterpart (same key, same amount) is "
         "dated in the adjacent period on the other side."
@@ -95,6 +100,12 @@ class TimingCheck(Check):
                 f"each is dated inside the period in one of {a} and {b} and up to {days} days "
                 "outside it in the other, with the same key and amount: one transaction "
                 "recorded on a different date basis.",
+                loosens=(
+                    f"loosens the default: allows dates up to {days} days apart "
+                    f"(default {DEFAULT_SHIFT_DAYS})"
+                    if days > DEFAULT_SHIFT_DAYS
+                    else None
+                ),
             ),
             Proposal(
                 "timing.date_basis",

@@ -295,7 +295,13 @@ class ReconService:
                     "amount": bucket.amount,
                     "evidence_rows": len(bucket.evidence_row_ids),
                     "assumptions": [
-                        {"id": a.id, "description": a.description, "confirmed": a.confirmed}
+                        {
+                            "id": a.id,
+                            "description": a.description,
+                            "elevated": a.elevated,
+                            "elevated_reason": a.elevated_reason,
+                            "confirmed": a.confirmed,
+                        }
                         for a in assumptions
                     ]
                     if bucket.item_ids
@@ -364,7 +370,13 @@ class ReconService:
                 ],
                 "checks_without_findings": [r.check_name for r in cert.checks_without_findings],
                 "unconfirmed_assumptions": [
-                    {"id": a.id, "description": a.description} for a in unconfirmed
+                    {"id": a.id, "description": a.description, "elevated": a.elevated}
+                    for a in unconfirmed
+                ],
+                "elevated_assumptions": [
+                    {"id": a.id, "reason": a.elevated_reason, "confirmed": a.confirmed}
+                    for a in cert.assumptions
+                    if a.elevated
                 ],
                 "certificate_hash": cert.certificate_hash,
                 "next_step": next_step,

@@ -1,7 +1,8 @@
 """Status filter: one side includes rows of a status (e.g. VOIDED) that the other side excludes.
 
 Guardrail: a row is claimed only if its own status value in the source extract
-is exactly one of the named statuses.
+is exactly one of the named statuses. Naming several spellings of one status
+(VOIDED, Voided) loosens that, so it is logged as an elevated assumption.
 """
 
 from __future__ import annotations
@@ -59,6 +60,12 @@ class StatusFilterCheck(Check):
     def propose_assumptions(self, ctx: CheckContext, params: StatusFilterParams) -> list[Proposal]:
         including, excluding = ctx.name(params.side), ctx.name(other(params.side))
         statuses = ", ".join(repr(s) for s in params.statuses)
+        spellings: dict[str, list[str]] = {}
+        for status in params.statuses:
+            spellings.setdefault(status.strip().casefold(), []).append(status)
+        variants = [
+            ", ".join(repr(s) for s in group) for group in spellings.values() if len(group) > 1
+        ]
         return [
             Proposal(
                 "status_filter.statuses",
@@ -69,5 +76,11 @@ class StatusFilterCheck(Check):
                 },
                 f"{including} includes them with '{params.status_column}' of {statuses}, and "
                 f"{excluding} excludes them.",
+                loosens=(
+                    "loosens the default: counts "
+                    + "; ".join(f"{group} as one status" for group in variants)
+                    if variants
+                    else None
+                ),
             )
         ]

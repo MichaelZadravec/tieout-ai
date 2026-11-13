@@ -59,6 +59,9 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-sp
 tr.total td { font-weight: 700; border-top: 2px solid var(--ink); }
 tr.unexplained td { color: var(--bad); }
 .state.unconfirmed { color: var(--warn); font-weight: 600; }
+.elevated { border: 1px solid #f0c98a; border-radius: 8px; padding: 4px 14px 12px; margin: 20px 0; }
+.elevated h2 { color: var(--warn); border-bottom-color: #f0c98a; }
+.reason { color: var(--warn); font-weight: 600; }
 .state.confirmed { color: var(--ok); }
 code, pre { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: 12.5px; }
 pre { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 10px;
@@ -91,6 +94,12 @@ def _assumption_state(a: Assumption) -> str:
         when = a.confirmed_at.strftime("%d %b %Y %H:%M UTC") if a.confirmed_at else ""
         return f'<span class="state confirmed">Confirmed by {_e(a.confirmed_by)} {_e(when)}</span>'
     return '<span class="state unconfirmed">Unconfirmed</span>'
+
+
+def _reason(a: Assumption) -> str:
+    if not a.elevated:
+        return ""
+    return f'<div class="reason">Elevated: {_e(a.elevated_reason)}</div>'
 
 
 def _where(item: ResidualItem, names: tuple[str, str]) -> str:
@@ -190,17 +199,29 @@ def render_html(cert: Certificate) -> str:
   </tbody>
 </table>{_no_findings(cert)}"""
 
-    assumption_rows = "".join(
-        f"""<tr><td><code>{_e(a.id)}</code></td><td>{_e(a.description)}
+    def assumption_table(rows: list[Assumption]) -> str:
+        body = "".join(
+            f"""<tr><td><code>{_e(a.id)}</code></td><td>{_reason(a)}{_e(a.description)}
   <div class="meta">{_e(a.parameter)} = <code>{_e(a.value)}</code></div></td>
   <td>{_e(a.proposed_by)}</td><td>{_assumption_state(a)}</td></tr>"""
-        for a in cert.assumptions
+            for a in rows
+        )
+        return f"""<table><thead><tr><th>ID</th><th>Statement</th><th>Proposed by</th>
+<th>Status</th></tr></thead><tbody>{body}</tbody></table>"""
+
+    elevated_rows = [a for a in cert.assumptions if a.elevated]
+    other_rows = [a for a in cert.assumptions if not a.elevated]
+    elevated = (
+        f"""<section class="elevated"><h2>Elevated assumptions</h2>
+<p class="meta">These loosen a check's default, so they deserve the closest review.</p>
+{assumption_table(elevated_rows)}</section>"""
+        if elevated_rows
+        else ""
     )
     assumptions = (
-        f"""<h2>Assumptions</h2>
-<table><thead><tr><th>ID</th><th>Statement</th><th>Proposed by</th><th>Status</th></tr></thead>
-<tbody>{assumption_rows}</tbody></table>"""
-        if cert.assumptions
+        f"""<h2>{"Other assumptions" if elevated_rows else "Assumptions"}</h2>
+{assumption_table(other_rows)}"""
+        if other_rows
         else ""
     )
 
@@ -239,6 +260,7 @@ def render_html(cert: Certificate) -> str:
   <h1>Reconciliation certificate {status_badge}</h1>
   <div class="meta">{_e(cert.id)} · issued {_e(cert.created_at.isoformat())} · period {_e(period)}{supersedes}</div>
   {banner}
+  {elevated}
   <div class="tiles">
     <div class="tile"><div class="label">{_e(name_a)} total</div><div class="value">{money(cert.match.total_a)}</div></div>
     <div class="tile"><div class="label">{_e(name_b)} total</div><div class="value">{money(cert.match.total_b)}</div></div>

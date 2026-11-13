@@ -87,11 +87,14 @@ class Proposal:
 
     `statement` completes "For these N records (...), "; the engine adds that
     scope from the claimed items, so no assumption reads broader than its proof.
+    `loosens` is set when the parameter loosens the check's default, and says how
+    ("loosens the default: ..."); the assumption is then elevated.
     """
 
     parameter: str
     value: Any
     statement: str
+    loosens: str | None = None
 
 
 MAX_LISTED_KEYS = 5
@@ -288,6 +291,7 @@ class Check(ABC):
                     f"{scope_phrase(scope)}, {proposal.statement}",
                     proposed_by,
                     scope=scope,
+                    elevated_reason=proposal.loosens,
                 )
                 assumption_ids.append(ctx.assumptions.propose(assumption).id)
         return Bucket(
