@@ -34,7 +34,7 @@ def test_certificate_records_versions_extracts_and_spec():
     _, ctx, _, cert = certified()
 
     assert cert.engine_version == __version__
-    assert {b.check_name: b.check_version for b in cert.buckets}["duplicates"] == "1.1.0"
+    assert {b.check_name: b.check_version for b in cert.buckets}["duplicates"] == "1.2.0"
     assert [e.data_hash for e in cert.extracts] == [
         ctx.a.extract.data_hash,
         ctx.b.extract.data_hash,

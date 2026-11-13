@@ -344,7 +344,8 @@ def test_duplicates_compare_columns_ignores_columns_left_out():
 @pytest.mark.parametrize(
     ("compare", "message"),
     [
-        (["invoice_id", "status"], "must include the amount column 'amount'"),
+        (["invoice_id", "status"], r"must keep the match's core columns.*missing: 'amount'"),
+        (["amount", "status"], r"missing: 'invoice_id'"),
         (["amount", "nope"], "has no column 'nope'"),
         ([], "at least 1"),
     ],

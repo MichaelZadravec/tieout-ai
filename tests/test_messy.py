@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 from fixtures.generate_messy import DASHBOARD_FILE, MANIFEST_FILE, XERO_FILE, generate_messy
-from recon_engine.checks import CheckContext, get_check, run_checks
+from recon_engine.checks import CheckContext, CheckParameterError, get_check, run_checks
 from recon_engine.connectors.files import FileConnector
 from recon_engine.match import match
 from recon_engine.models import Connection, ConnectionType, MatchSpec, Period
@@ -101,6 +101,28 @@ def test_status_matching_is_exact_so_case_and_whitespace_variants_stay_open(mess
 def test_near_duplicates_need_compare_columns(messy):
     _, ctx = messy
     assert get_check("duplicates").run(ctx, {"side": "a"}).item_ids == []
+
+
+def test_compare_columns_cannot_drop_the_date_column(messy):
+    """INV-20191 is one invoice on two dates: not a copy. Dropping the date would claim it."""
+    _, ctx = messy
+    without_date = ["invoice_number", "amount", "status", "type"]
+
+    with pytest.raises(CheckParameterError) as rejected:
+        get_check("duplicates").run(ctx, {"side": "a", "compare_columns": without_date})
+
+    assert str(rejected.value) == (
+        "compare_columns must keep the match's core columns (key, amount and dates); "
+        "missing: 'appointment_date'"
+    )
+
+
+def test_the_repeated_invoice_on_two_dates_is_never_a_duplicate(messy):
+    _, ctx = messy
+    every_allowed = ["invoice_number", "appointment_date", "amount"]
+    bucket = get_check("duplicates").run(ctx, {"side": "a", "compare_columns": every_allowed})
+
+    assert "INV-20191" not in keys_of(bucket, ctx)
 
 
 def test_compound_timing_and_gst_is_claimed_by_neither_check(messy):

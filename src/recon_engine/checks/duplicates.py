@@ -1,8 +1,10 @@
 """Duplicates: one side repeats a row that the other side has once.
 
 Guardrails: every repeated row must be identical in the compared columns (by
-default every column of its extract; the compared set must include the amount
-column), and the other side's amount for that key must equal one copy.
+default every column of its extract), and the other side's amount for that key
+must equal one copy. The compared columns must always include the match's core
+columns on that side: its key, its amount and its date. Otherwise one invoice
+recorded on two different dates could be claimed as a copy.
 
 `compare_columns` lets a reviewer treat rows that differ only in load metadata
 (a load ID, an export timestamp) as duplicates. The columns compared, and so the
@@ -36,7 +38,7 @@ class DuplicatesParams(CheckParams):
         default=None,
         min_length=1,
         description="Columns that must be identical for rows to count as copies. "
-        "Default: every column. Must include the amount column.",
+        "Default: every column. Must include the match key, amount and date columns.",
     )
 
 
@@ -44,10 +46,15 @@ def _compared(ctx: CheckContext, params: DuplicatesParams) -> list[str]:
     return params.compare_columns or list(ctx.data(params.side).extract.columns)
 
 
+def _core_columns(ctx: CheckContext, side: Side) -> list[str]:
+    date = ctx.date_column(side)
+    return [*ctx.key_columns(side), ctx.amount_column(side), *([date] if date else [])]
+
+
 @register
 class DuplicatesCheck(Check):
     name = "duplicates"
-    version = "1.1.0"
+    version = "1.2.0"
     description = (
         "Keys where one side has the same row several times (identical in every column, or "
         "in the columns named by compare_columns) and the other side has it once."
@@ -61,9 +68,11 @@ class DuplicatesCheck(Check):
         columns = _compared(ctx, params)
         for column in columns:
             ctx.require_column(params.side, column)
-        if amount_column not in columns:
+        missing = [c for c in _core_columns(ctx, params.side) if c not in columns]
+        if missing:
             raise CheckParameterError(
-                f"compare_columns must include the amount column '{amount_column}'"
+                "compare_columns must keep the match's core columns (key, amount and dates); "
+                f"missing: {', '.join(repr(c) for c in missing)}"
             )
 
         claims = []
