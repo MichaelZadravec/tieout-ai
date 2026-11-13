@@ -26,7 +26,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from recon_engine.hashing import hash_file
+from recon_engine.hashing import hash_file, hash_sqlite
 from recon_engine.models import Connection, ConnectionType
 from recon_engine.signing import Signer, TrustedKey
 
@@ -35,11 +35,11 @@ class ConnectionStoreError(Exception):
     """A connection is unknown or invalid."""
 
 
-def file_registration(path: Path) -> dict[str, Any]:
-    """What a person vouches for when registering a file: its exact bytes."""
+def file_registration(path: Path, *, sqlite: bool = False) -> dict[str, Any]:
+    """What a person vouches for when registering a file (or SQLite database): its bytes."""
     stat = path.stat()
     return {
-        "sha256": hash_file(path),
+        "sha256": hash_sqlite(path) if sqlite else hash_file(path),
         "size": stat.st_size,
         "modified": datetime.fromtimestamp(stat.st_mtime, UTC).isoformat(),
     }

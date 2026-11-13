@@ -11,12 +11,18 @@ Queries must also return every row they select: LIMIT, TOP, OFFSET, FETCH,
 SAMPLE and TABLESAMPLE are refused. Every other way a query leaves rows out
 (WHERE and HAVING conditions, JOINs, DISTINCT, UNION, EXCEPT, INTERSECT) is
 recorded on the extract (`describe_filters`) and becomes an assumption that a
-person must confirm.
+person must confirm. So does every output column the query computes instead of
+reading (`computed_columns`), since a CASE or a sum can rewrite values without
+leaving any row out.
+
+A SQLite database is a file, so it is hashed like one: a person registers its
+hash, and every read compares, so editing the database is caught.
 """
 
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta
+from pathlib import Path
 
 import pandas as pd
 import sqlglot
@@ -32,6 +38,7 @@ from recon_engine.connectors.base import (
     UnsafeQueryError,
     build_extract,
 )
+from recon_engine.hashing import hash_sqlite
 from recon_engine.models import ConnectionType, ExtractData, QueryFilter
 
 # SQLAlchemy backend name -> sqlglot dialect.
@@ -186,6 +193,59 @@ def _date_range(e: exp.Expression) -> tuple[str, date | None, date | None] | Non
     return column.name, earliest, latest
 
 
+def computed_columns(statement: exp.Expression, dialect: str | None = None) -> dict[str, str]:
+    """Output columns the query computes rather than reads, with the SQL computing them.
+
+    A plain column, renamed or not, is read. Anything else is computed, and a computed
+    value renamed in an outer query is traced to the name the query returns.
+    """
+    computed: dict[str, str] = {}
+    renames: dict[str, str] = {}
+    for node in statement.walk():
+        if not isinstance(node, exp.Select):
+            continue
+        for projection in node.expressions:
+            inner = projection.this if isinstance(projection, exp.Alias) else projection
+            if isinstance(inner, exp.Star) or (
+                isinstance(inner, exp.Column) and isinstance(inner.this, exp.Star)
+            ):
+                continue
+            name = projection.alias_or_name
+            if isinstance(inner, exp.Column):
+                if inner.name != name:
+                    renames[name] = inner.name
+            else:
+                computed[name] = inner.sql(dialect=dialect)
+
+    def trace(name: str) -> str | None:
+        for _ in range(len(renames) + 1):
+            if name in computed:
+                return computed[name]
+            if name not in renames:
+                return None
+            name = renames[name]
+        return None
+
+    found = {name: sql for name in [*computed, *renames] if (sql := trace(name)) is not None}
+    if isinstance(statement, exp.Select) and not any(
+        isinstance(p, exp.Star) or (isinstance(p, exp.Column) and isinstance(p.this, exp.Star))
+        for p in statement.expressions
+    ):
+        returned = {p.alias_or_name for p in statement.expressions}
+        found = {name: sql for name, sql in found.items() if name in returned}
+    return found
+
+
+def sqlite_file(url: str) -> Path | None:
+    """The database file behind a SQLite URL, or None for a server or in-memory database."""
+    parsed = make_url(url)
+    if parsed.get_backend_name() != "sqlite" or not parsed.database:
+        return None
+    if parsed.database == ":memory:":
+        return None
+    return Path(parsed.database)
+
+
 def describe_filters(statement: exp.Expression, dialect: str | None = None) -> list[QueryFilter]:
     """Every way a validated query leaves rows out, in the order they appear."""
     found: list[QueryFilter] = []
@@ -250,6 +310,10 @@ class SQLConnector(Connector):
         backend = url.get_backend_name()
         dialect = _DIALECTS.get(backend)
         statement = validate_select(query, dialect)
+        database = sqlite_file(self.connection.config["url"])
+        changed, warning = False, None
+        if database is not None and database.is_file():
+            changed, warning = self.registration_check(database, hash_sqlite(database))
 
         engine = create_engine(url)
         try:
@@ -271,6 +335,12 @@ class SQLConnector(Connector):
 
         frame = pd.DataFrame(rows, columns=columns, dtype=object)
         data = build_extract(self.connection.id, query, frame)
-        filters = describe_filters(statement, dialect)
-        extract = data.extract.model_copy(update={"query_filters": filters})
+        extract = data.extract.model_copy(
+            update={
+                "query_filters": describe_filters(statement, dialect),
+                "computed_columns": computed_columns(statement, dialect),
+                "changed_since_registration": changed,
+                "source_warning": warning,
+            }
+        )
         return ExtractData(extract=extract, frame=data.frame)

@@ -105,6 +105,35 @@ class Session:
         for side in ("a", "b"):
             for query_filter in self.context.data(side).extract.query_filters:
                 self._propose_filter(side, query_filter, proposed_by)
+            for column, sql in self.context.data(side).extract.computed_columns.items():
+                self._propose_computed(side, column, sql, proposed_by)
+
+    def _propose_computed(self, side: Side, column: str, sql: str, proposed_by: ProposedBy) -> None:
+        extract = self.context.data(side).extract
+        name = self.context.name(side)
+        role = (
+            "key column"
+            if column in self.context.key_columns(side)
+            else "amount column"
+            if column == self.context.amount_column(side)
+            else "date column"
+            if column == self.context.date_column(side)
+            else "column"
+        )
+        self.propose_assumption(
+            "query.computed_column",
+            {
+                "connection": extract.connection_id,
+                "query_hash": extract.query_hash,
+                "column": column,
+                "sql": sql,
+            },
+            f"The {name} query computes its {role} '{column}' as {sql} instead of reading "
+            "it from the source.",
+            proposed_by,
+            elevated_reason=f"loosens the default: the {name} query computes the {role} "
+            f"'{column}' ({sql})",
+        )
 
     def _propose_filter(
         self, side: Side, query_filter: QueryFilter, proposed_by: ProposedBy

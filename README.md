@@ -172,6 +172,11 @@ the extract is matched. A `WHERE` that only limits rows to the reconciliation
 period is a normal assumption; anything else is elevated. Either way a person
 must confirm it before the certificate can be RECONCILED.
 
+An output column the query computes instead of reading (a `CASE`, arithmetic, an
+aggregate) is an elevated assumption too, even when no row is left out, and the
+key, amount or date column it feeds is named. A SQLite database is hashed like a
+file (with its `-wal` log) when a person registers it, so editing it is caught.
+
 ## Confirming assumptions (people only)
 
 A confirmation counts only if it is signed with the confirmer's key. Create your

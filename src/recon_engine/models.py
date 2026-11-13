@@ -69,6 +69,9 @@ class Extract(_Model):
     source_warning: str | None = None
     # SQL sources: every way the query leaves rows out. Each becomes an assumption.
     query_filters: list[QueryFilter] = Field(default_factory=list)
+    # SQL sources: output columns the query computes rather than reads (CASE, arithmetic,
+    # aggregates), with the SQL that computes them. Each becomes an elevated assumption.
+    computed_columns: dict[str, str] = Field(default_factory=dict)
 
 
 @dataclass(frozen=True)

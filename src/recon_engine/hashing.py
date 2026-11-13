@@ -116,6 +116,20 @@ def hash_file(path) -> str:
     return digest.hexdigest()
 
 
+def hash_sqlite(path) -> str:
+    """SHA-256 of a SQLite database: its file, plus its write-ahead log if it has one
+    (committed changes can sit in the -wal file until a checkpoint)."""
+    from pathlib import Path
+
+    path = Path(path)
+    digest = hashlib.sha256(path.read_bytes())
+    wal = path.with_name(path.name + "-wal")
+    if wal.is_file() and wal.stat().st_size:
+        digest.update(b"\0-wal\0")
+        digest.update(wal.read_bytes())
+    return digest.hexdigest()
+
+
 def hash_query(query_text: str) -> str:
     """Hash of the exact query text the engine ran."""
     return sha256_hex(query_text.encode("utf-8"))

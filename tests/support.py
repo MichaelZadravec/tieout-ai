@@ -168,3 +168,22 @@ def signer():
     from recon_engine.signing import load_signer
 
     return load_signer(PASSPHRASE)
+
+
+def registered_sqlite(conn_id: str, db: Path):
+    """A SQLite connection as `recon connections add-sql` records it: hashed and signed."""
+    from recon_engine.connections import file_registration
+    from recon_engine.models import Connection, ConnectionType
+
+    registered = {
+        **file_registration(db, sqlite=True),
+        "registered_by": "test",
+        "registered_at": "2026-11-01T00:00:00+00:00",
+    }
+    return signed(
+        Connection(
+            id=conn_id,
+            type=ConnectionType.SQL,
+            config={"url": f"sqlite:///{db}", "registered": registered},
+        )
+    )

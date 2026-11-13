@@ -27,6 +27,7 @@ from recon_engine.connections import (
     file_registration,
     sign_connection,
 )
+from recon_engine.connectors.sql import sqlite_file
 from recon_engine.models import CertificateStatus, Connection, ConnectionType, source_names
 from recon_engine.project import init_folder
 from recon_engine.render import money, render_html
@@ -457,7 +458,7 @@ def refresh_connection(
         _fail(f"No file at {source}")
         return
     previous = conn.config.get("registered") or {}
-    current = file_registration(source)
+    current = file_registration(source, sqlite=conn.type == ConnectionType.SQL)
     typer.echo(f"Connection '{connection_id}' -> {source}")
     typer.echo(f"  registered sha256 {str(previous.get('sha256', 'none'))[:16]}...")
     typer.echo(f"  file now   sha256 {current['sha256'][:16]}... ({current['size']:,} bytes)")
@@ -508,10 +509,14 @@ def add_sql_connection(
     signer = _unlock_key("register it")
     if signer is None:
         return
+    registered: dict = {"registered_by": signer.owner, "registered_at": _now()}
+    database = sqlite_file(url)
+    if database is not None and database.is_file():
+        registered.update(file_registration(database, sqlite=True))
     conn = Connection(
         id=connection_id,
         type=ConnectionType.SQL,
-        config={"url": url, "registered": {"registered_by": signer.owner, "registered_at": _now()}},
+        config={"url": url, "registered": registered},
     )
     if not _store_signed(ctx, conn, signer, replace):
         return
@@ -573,6 +578,8 @@ def _registered_file(conn: Connection) -> Path | None:
     """The file a connection's registration hashes, if any."""
     if conn.type == ConnectionType.FILE:
         return Path(conn.config["path"])
+    if conn.type == ConnectionType.SQL:
+        return sqlite_file(conn.config["url"])
     return None
 
 

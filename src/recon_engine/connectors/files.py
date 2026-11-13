@@ -39,28 +39,11 @@ class FileConnector(Connector):
             raise ConnectorError(f"Unsupported file type '{suffix}'; expected .csv, .xlsx or .xlsm")
         content = path.read_bytes()
         data = read(path, content, query)
-        changed, warning = self._registration_check(path, sha256_hex(content))
+        changed, warning = self.registration_check(path, sha256_hex(content))
         extract = data.extract.model_copy(
             update={"changed_since_registration": changed, "source_warning": warning}
         )
         return ExtractData(extract=extract, frame=data.frame)
-
-    def _registration_check(self, path: Path, digest: str) -> tuple[bool, str | None]:
-        conn_id = self.connection.id
-        refresh = f"A person must check it and run `recon connections refresh {conn_id}`."
-        registered = self.connection.config.get("registered")
-        if not registered:
-            return False, (
-                f"File {path.name} (connection '{conn_id}') was not registered with a file "
-                f"hash, so changes to it cannot be detected. {refresh}"
-            )
-        if registered.get("sha256") != digest:
-            when = registered.get("refreshed_at") or registered.get("registered_at") or "?"
-            return True, (
-                f"File {path.name} (connection '{conn_id}') has changed since it was "
-                f"registered ({when}). {refresh}"
-            )
-        return False, None
 
     def _fetch_csv(self, path: Path, content: bytes, sheet: str | None) -> ExtractData:
         if sheet is not None:

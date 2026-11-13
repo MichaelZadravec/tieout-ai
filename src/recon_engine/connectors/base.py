@@ -5,6 +5,7 @@ from __future__ import annotations
 import uuid
 from abc import ABC, abstractmethod
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any, ClassVar
 
 import numpy as np
@@ -36,6 +37,28 @@ class Connector(ABC):
     @abstractmethod
     def fetch(self, query: str | None = None) -> ExtractData:
         """Read from the source and return the rows with their hashed Extract."""
+
+    def registration_check(self, path: Path, digest: str) -> tuple[bool, str | None]:
+        """Compare a source file's hash with the one a person registered.
+
+        Returns (changed since registration, warning for a person). A file with no
+        registered hash cannot be checked, so it gets a warning too.
+        """
+        conn_id = self.connection.id
+        refresh = f"A person must check it and run `recon connections refresh {conn_id}`."
+        registered = self.connection.config.get("registered") or {}
+        if not registered.get("sha256"):
+            return False, (
+                f"File {path.name} (connection '{conn_id}') was not registered with a file "
+                f"hash, so changes to it cannot be detected. {refresh}"
+            )
+        if registered["sha256"] != digest:
+            when = registered.get("refreshed_at") or registered.get("registered_at") or "?"
+            return True, (
+                f"File {path.name} (connection '{conn_id}') has changed since it was "
+                f"registered ({when}). {refresh}"
+            )
+        return False, None
 
 
 def _native(value: Any) -> Any:
