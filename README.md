@@ -59,6 +59,32 @@ uv run python fixtures/generate.py
 uv run python fixtures/generate_messy.py
 ```
 
+## Setting up a folder for a customer
+
+Install the engine as a tool, put it on PATH, then run `recon init` in an empty
+folder:
+
+```bash
+uv tool install --python 3.14 C:\path\to\recon_engine
+```
+
+```bash
+uv tool update-shell
+```
+
+```bash
+recon init
+```
+
+`recon init` creates the `.recon/` workspace, registers the MCP server in
+`.mcp.json` (`recon-mcp --home .recon`), and writes `.claude/settings.json` that
+allows the recon tools but denies `recon confirm`, `recon keys` and
+`recon connections` (in Bash and PowerShell) and any edit inside `.recon/`. It
+checks that `recon` and `recon-mcp` are on PATH and says how to fix it if not,
+creates your confirmer key if there is none, and prints the next steps. It
+merges into existing files and is safe to run again: a second run changes
+nothing.
+
 ## MCP server (for AI agents)
 
 The engine is driven by an AI through an MCP server; the engine itself makes no

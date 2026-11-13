@@ -1,4 +1,5 @@
 import json
+import os
 
 import pytest
 from support import PASSPHRASE, fixture_extracts, plan_for, signer
@@ -176,3 +177,22 @@ def test_session_assumptions_make_the_certificate_provisional(home):
     cert = session.certify()
     assert cert.unconfirmed_assumptions == [scope.id]
     assert cert.status.value == "PROVISIONAL"
+
+
+def test_the_null_device_is_not_a_person(home, cert):
+    """On Windows NUL reports isatty(); a confirmation must still be refused."""
+    import subprocess
+    import sys
+
+    target = cert.unconfirmed_assumptions[0]
+    with open(os.devnull) as null:
+        result = subprocess.run(
+            [sys.executable, "-m", "recon_engine.cli", "--home", str(home), "confirm", target],
+            stdin=null,
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+
+    assert result.returncode == 1
+    assert "interactive terminal" in result.stderr

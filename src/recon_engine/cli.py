@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import getpass
 import secrets
+import shutil
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
@@ -21,6 +22,7 @@ from recon_engine import __version__
 from recon_engine.assumptions import AssumptionError
 from recon_engine.connections import ConnectionStoreError, file_registration
 from recon_engine.models import CertificateStatus, Connection, ConnectionType, source_names
+from recon_engine.project import init_folder
 from recon_engine.render import money, render_html
 from recon_engine.session import CertificateError, Workspace
 from recon_engine.signing import (
@@ -54,7 +56,21 @@ _CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 
 
 def _stdin_is_tty() -> bool:
-    return sys.stdin.isatty()
+    """True only when a person can type: stdin is a real terminal or console.
+
+    On Windows isatty() is also true for the NUL device, so a console is
+    confirmed by asking Windows for the handle's console mode.
+    """
+    if not sys.stdin.isatty():
+        return False
+    if sys.platform != "win32":
+        return True
+    import ctypes
+    import msvcrt
+
+    mode = ctypes.c_uint32()
+    handle = msvcrt.get_osfhandle(sys.stdin.fileno())
+    return bool(ctypes.windll.kernel32.GetConsoleMode(handle, ctypes.byref(mode)))
 
 
 def _confirmation_code() -> str:
@@ -102,6 +118,59 @@ def main(
 def version() -> None:
     """Print the engine version."""
     typer.echo(__version__)
+
+
+@app.command()
+def init(
+    folder: Annotated[
+        Path, typer.Argument(help="Folder to set up (default: the current folder).")
+    ] = Path("."),
+) -> None:
+    """Set a folder up for reconciling with Claude Code. Safe to run again."""
+    folder = folder.resolve()
+    typer.echo(f"Setting up {folder}")
+    for path, status in init_folder(folder):
+        typer.echo(f"  {path:<24} {status}")
+
+    missing = [name for name in ("recon", "recon-mcp") if shutil.which(name) is None]
+    if missing:
+        typer.echo("")
+        typer.echo(
+            f"{' and '.join(missing)} {'is' if len(missing) == 1 else 'are'} not on your PATH,"
+        )
+        typer.echo("so Claude Code cannot start the server. Fix it with:")
+        typer.echo("    uv tool update-shell")
+        typer.echo("then open a new terminal (and restart Claude Code).")
+
+    typer.echo("")
+    key = load_trusted_key()
+    if key is None and _stdin_is_tty():
+        typer.echo("No confirmer key yet. Confirmations must be signed, so create one now.")
+        name = typer.prompt("Your name, as confirmations will show it", default=getpass.getuser())
+        passphrase = typer.prompt(
+            f"Choose a passphrase (at least {MIN_PASSPHRASE} characters)",
+            hide_input=True,
+            confirmation_prompt=True,
+        )
+        try:
+            key = init_keys(name, passphrase)
+        except SigningError as error:
+            _fail(str(error))
+            return
+    if key is None:
+        typer.echo("No confirmer key yet. In your own terminal, run:")
+        typer.echo('    recon keys init --name "Your Name"')
+    else:
+        typer.echo(f"Confirmer key: {key.owner} ({key.fingerprint})")
+
+    typer.echo("")
+    typer.echo("Next steps (you, not the AI):")
+    typer.echo("  1. Add your data sources here, for example:")
+    typer.echo("       recon connections add-file dashboard C:\\data\\dashboard.csv")
+    typer.echo("       recon connections add-sql ledger")
+    typer.echo(f"  2. Open Claude Code in {folder} and approve the recon server.")
+    typer.echo("  3. Ask it to reconcile. Confirm its assumptions yourself, in your own terminal:")
+    typer.echo("       recon confirm <assumption_id>")
 
 
 @app.command()
@@ -474,3 +543,7 @@ def remove_connection(
         _fail(str(error))
         return
     typer.echo(f"Removed connection '{connection_id}'")
+
+
+if __name__ == "__main__":
+    app()
