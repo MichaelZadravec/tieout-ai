@@ -75,3 +75,27 @@ def test_a_confirmation_needs_a_name():
 def test_different_values_are_different_assumptions():
     store = AssumptionStore()
     assert store.propose(proposal("VOIDED")).id != store.propose(proposal("DRAFT")).id
+
+
+def test_a_store_sees_changes_made_by_another_process(tmp_path):
+    # The MCP server holds one store open; `recon confirm` writes through another.
+    path = tmp_path / "assumptions.json"
+    server_view = AssumptionStore(path)
+    assumption_id = server_view.propose(proposal()).id
+
+    AssumptionStore(path).confirm(assumption_id, "Jane CFO", at=WHEN)
+
+    assert server_view.get(assumption_id).confirmed is True
+    assert server_view.all()[0].confirmed_by == "Jane CFO"
+
+
+def test_a_store_never_writes_back_a_stale_copy(tmp_path):
+    path = tmp_path / "assumptions.json"
+    server_view = AssumptionStore(path)
+    first = server_view.propose(proposal("VOIDED")).id
+
+    AssumptionStore(path).confirm(first, "Jane CFO", at=WHEN)
+    server_view.propose(proposal("DRAFT"))  # a later write by the server
+
+    assert AssumptionStore(path).get(first).confirmed is True
+    assert len(AssumptionStore(path)) == 2

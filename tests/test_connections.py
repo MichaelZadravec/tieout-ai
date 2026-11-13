@@ -77,3 +77,14 @@ def test_remove(tmp_path):
 
     assert recon(home, "connections", "remove", "x").exit_code == 0
     assert "No connections yet" in recon(home, "connections", "list").output
+
+
+def test_a_store_sees_connections_added_by_another_process(tmp_path):
+    path = tmp_path / "connections.json"
+    server_view = ConnectionStore(path)
+    ConnectionStore(path).add(
+        Connection(id="erp", type=ConnectionType.SQL, config={"url": "sqlite:///x.db"})
+    )
+
+    assert [c.id for c in server_view.all()] == ["erp"]
+    assert server_view.get("erp").config == {"url": "sqlite:///x.db"}

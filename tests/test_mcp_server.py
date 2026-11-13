@@ -8,7 +8,9 @@ from decimal import Decimal
 import pytest
 from mcp.client import Client
 from support import CLEAN_PLAN, FIXTURE_MATCH_ARGS, fixture_workspace
+from typer.testing import CliRunner
 
+from recon_engine import cli
 from recon_engine.mcp_server import build_server
 
 TOOLS = {
@@ -110,6 +112,46 @@ def test_end_to_end_reconciliation_over_mcp(server):
     assert cert["residual"] == "0.00"
     assert sum(Decimal(b["amount"]) for b in cert["buckets"]) == Decimal(cert["gap"])
     assert loaded["hash_verified"] is True
+
+
+def test_confirming_through_the_cli_while_the_server_runs_reaches_certify(tmp_path, monkeypatch):
+    """No restart: the server re-reads the assumption store on every certify."""
+    home = tmp_path / "home"
+    server = build_server(fixture_workspace(home))
+    monkeypatch.setattr(cli, "_stdin_is_tty", lambda: True)
+    monkeypatch.setattr(cli, "_confirmation_code", lambda: "K7Q2PX")
+
+    async def script(client):
+        async def call(name, **args):
+            result = await client.call_tool(name, args)
+            assert not result.is_error, result.content[0].text
+            return payload(result)
+
+        a = (await call("run_query", connection_id="dashboard"))["extract_id"]
+        b = (await call("run_query", connection_id="xero"))["extract_id"]
+        rec = (await call("match", extract_a=a, extract_b=b, **FIXTURE_MATCH_ARGS))[
+            "reconciliation_id"
+        ]
+        for name, params in CLEAN_PLAN.values():
+            await call("run_check", reconciliation_id=rec, check=name, params=params)
+        first = await call("certify", reconciliation_id=rec)
+
+        for assumption in first["unconfirmed_assumptions"]:
+            confirmed = CliRunner().invoke(
+                cli.app,
+                ["--home", str(home), "confirm", assumption["id"], "--by", "Jane CFO"],
+                input="K7Q2PX\n",
+            )
+            assert confirmed.exit_code == 0, confirmed.output
+
+        second = await call("certify", reconciliation_id=rec)
+        return first, second
+
+    first, second = run(server, script)
+    assert first["status"] == "PROVISIONAL"
+    assert first["unconfirmed_assumptions"]
+    assert second["status"] == "RECONCILED"
+    assert second["supersedes"] == first["certificate_id"]
 
 
 @pytest.mark.parametrize(
