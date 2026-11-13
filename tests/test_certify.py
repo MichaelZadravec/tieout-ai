@@ -1,5 +1,8 @@
+import json
+import shutil
 from datetime import UTC, datetime
 from decimal import Decimal
+from pathlib import Path
 
 import pytest
 from support import CLEAN_PLAN, fixture_context, make_extract, plan_for
@@ -10,6 +13,7 @@ from recon_engine.certify import ConservationError, certify, verify_certificate
 from recon_engine.checks import CheckContext, get_check, run_checks
 from recon_engine.match import match
 from recon_engine.models import Assumption, Certificate, CertificateStatus, MatchSpec
+from recon_engine.session import CertificateError, Workspace
 
 NOW = datetime(2026, 11, 4, 12, 0, tzinfo=UTC)
 
@@ -235,3 +239,31 @@ def test_empty_amounts_are_unexplained_data_quality_items():
     assert cert.residual == 0
     assert cert.status == CertificateStatus.OPEN
     assert cert.match.invalid_a_count == 1
+
+
+LEGACY = Path(__file__).parent / "data" / "certificate_v0_pre_4b.json"
+
+
+def test_a_certificate_issued_by_an_earlier_engine_still_verifies(tmp_path):
+    """Issued before assumptions gained scope/elevated fields; it must still verify as written."""
+    workspace = Workspace(tmp_path)
+    workspace.certificate_dir.mkdir(parents=True)
+    cert_id = json.loads(LEGACY.read_text(encoding="utf-8"))["id"]
+    shutil.copy(LEGACY, workspace.certificate_dir / f"{cert_id}.json")
+
+    cert = workspace.load_certificate(cert_id)
+
+    assert cert.status == CertificateStatus.RECONCILED
+
+
+def test_an_altered_earlier_certificate_is_still_refused(tmp_path):
+    workspace = Workspace(tmp_path)
+    workspace.certificate_dir.mkdir(parents=True)
+    document = json.loads(LEGACY.read_text(encoding="utf-8"))
+    document["residual"] = "0.01"
+    (workspace.certificate_dir / f"{document['id']}.json").write_text(
+        json.dumps(document), encoding="utf-8"
+    )
+
+    with pytest.raises(CertificateError, match="does not match its hash"):
+        workspace.load_certificate(document["id"])

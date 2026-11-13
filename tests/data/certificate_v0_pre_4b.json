@@ -1,0 +1,545 @@
+{
+  "id": "cert_1d4373f56337730e",
+  "engine_version": "0.1.0",
+  "status": "RECONCILED",
+  "created_at": "2026-11-06T12:01:03.881996Z",
+  "extracts": [
+    {
+      "id": "ext_121f2727b70a",
+      "connection_id": "dashboard",
+      "query_text": "FILE dashboard_oct2026.csv",
+      "query_hash": "e8933b0a61b5c4bfd351f2dc999e0115bd0bb8a6bbafc7a82a569579b2de2fb7",
+      "columns": [
+        "invoice_number",
+        "appointment_date",
+        "amount",
+        "status",
+        "type"
+      ],
+      "row_count": 384,
+      "column_totals": {
+        "amount": "181804.00"
+      },
+      "data_hash": "026a7bb790cca7f4e2efa193e22471f3bf85df0d808489f351132a4a2336f74c",
+      "fetched_at": "2026-11-06T12:00:46.589061Z"
+    },
+    {
+      "id": "ext_99310eea280d",
+      "connection_id": "xero",
+      "query_text": "FILE xero_oct_nov2026.csv",
+      "query_hash": "7c7c23cf7d7eaeea3ea3e51ccf39820df0a997adb52db79140cf9b73e4fa386e",
+      "columns": [
+        "InvoiceNumber",
+        "InvoiceDate",
+        "Total",
+        "Status",
+        "Type"
+      ],
+      "row_count": 419,
+      "column_totals": {
+        "Total": "198869.00"
+      },
+      "data_hash": "4b79b683215986028bebf49a2a64a779a3332fcbdb12ff4d2520572f82ec0b29",
+      "fetched_at": "2026-11-06T12:00:46.640852Z"
+    }
+  ],
+  "match_spec": {
+    "extract_a": "ext_121f2727b70a",
+    "extract_b": "ext_99310eea280d",
+    "key_columns": [
+      "invoice_number"
+    ],
+    "amount_column": "amount",
+    "date_column": "appointment_date",
+    "key_columns_b": [
+      "InvoiceNumber"
+    ],
+    "amount_column_b": "Total",
+    "date_column_b": "InvoiceDate",
+    "period": {
+      "start": "2026-10-01",
+      "end": "2026-10-31"
+    }
+  },
+  "match": {
+    "matched_count": 300,
+    "only_a_count": 61,
+    "only_b_count": 2,
+    "difference_count": 19,
+    "excluded_a_count": 0,
+    "excluded_b_count": 98,
+    "invalid_a_count": 0,
+    "invalid_b_count": 0,
+    "total_a": "181804.00",
+    "total_b": "152732.00",
+    "gap": "29072.00"
+  },
+  "buckets": [
+    {
+      "check_name": "timing",
+      "check_version": "1.0.0",
+      "parameters": {
+        "max_shift_days": 31
+      },
+      "item_ids": [
+        "ext_121f2727b70a:0",
+        "ext_121f2727b70a:7",
+        "ext_121f2727b70a:8",
+        "ext_121f2727b70a:9",
+        "ext_121f2727b70a:16",
+        "ext_121f2727b70a:21",
+        "ext_121f2727b70a:45",
+        "ext_121f2727b70a:60",
+        "ext_121f2727b70a:63",
+        "ext_121f2727b70a:64",
+        "ext_121f2727b70a:78",
+        "ext_121f2727b70a:83",
+        "ext_121f2727b70a:84",
+        "ext_121f2727b70a:93",
+        "ext_121f2727b70a:99",
+        "ext_121f2727b70a:105",
+        "ext_121f2727b70a:112",
+        "ext_121f2727b70a:114",
+        "ext_121f2727b70a:118",
+        "ext_121f2727b70a:123",
+        "ext_121f2727b70a:124",
+        "ext_121f2727b70a:137",
+        "ext_121f2727b70a:146",
+        "ext_121f2727b70a:162",
+        "ext_121f2727b70a:169",
+        "ext_121f2727b70a:172",
+        "ext_121f2727b70a:175",
+        "ext_121f2727b70a:187",
+        "ext_121f2727b70a:192",
+        "ext_121f2727b70a:196",
+        "ext_121f2727b70a:204",
+        "ext_121f2727b70a:208",
+        "ext_121f2727b70a:251",
+        "ext_121f2727b70a:253",
+        "ext_121f2727b70a:268",
+        "ext_121f2727b70a:280",
+        "ext_121f2727b70a:283",
+        "ext_121f2727b70a:284",
+        "ext_121f2727b70a:293",
+        "ext_121f2727b70a:299",
+        "ext_121f2727b70a:302",
+        "ext_121f2727b70a:305",
+        "ext_121f2727b70a:306",
+        "ext_121f2727b70a:313",
+        "ext_121f2727b70a:320",
+        "ext_121f2727b70a:325",
+        "ext_121f2727b70a:330",
+        "ext_121f2727b70a:335",
+        "ext_121f2727b70a:338",
+        "ext_121f2727b70a:341",
+        "ext_121f2727b70a:342",
+        "ext_121f2727b70a:346",
+        "ext_121f2727b70a:347",
+        "ext_121f2727b70a:351",
+        "ext_121f2727b70a:360",
+        "ext_121f2727b70a:362",
+        "ext_121f2727b70a:366",
+        "ext_121f2727b70a:379"
+      ],
+      "row_ids": [
+        "ext_121f2727b70a:0",
+        "ext_121f2727b70a:7",
+        "ext_121f2727b70a:8",
+        "ext_121f2727b70a:9",
+        "ext_121f2727b70a:16",
+        "ext_121f2727b70a:21",
+        "ext_121f2727b70a:45",
+        "ext_121f2727b70a:60",
+        "ext_121f2727b70a:63",
+        "ext_121f2727b70a:64",
+        "ext_121f2727b70a:78",
+        "ext_121f2727b70a:83",
+        "ext_121f2727b70a:84",
+        "ext_121f2727b70a:93",
+        "ext_121f2727b70a:99",
+        "ext_121f2727b70a:105",
+        "ext_121f2727b70a:112",
+        "ext_121f2727b70a:114",
+        "ext_121f2727b70a:118",
+        "ext_121f2727b70a:123",
+        "ext_121f2727b70a:124",
+        "ext_121f2727b70a:137",
+        "ext_121f2727b70a:146",
+        "ext_121f2727b70a:162",
+        "ext_121f2727b70a:169",
+        "ext_121f2727b70a:172",
+        "ext_121f2727b70a:175",
+        "ext_121f2727b70a:187",
+        "ext_121f2727b70a:192",
+        "ext_121f2727b70a:196",
+        "ext_121f2727b70a:204",
+        "ext_121f2727b70a:208",
+        "ext_121f2727b70a:251",
+        "ext_121f2727b70a:253",
+        "ext_121f2727b70a:268",
+        "ext_121f2727b70a:280",
+        "ext_121f2727b70a:283",
+        "ext_121f2727b70a:284",
+        "ext_121f2727b70a:293",
+        "ext_121f2727b70a:299",
+        "ext_121f2727b70a:302",
+        "ext_121f2727b70a:305",
+        "ext_121f2727b70a:306",
+        "ext_121f2727b70a:313",
+        "ext_121f2727b70a:320",
+        "ext_121f2727b70a:325",
+        "ext_121f2727b70a:330",
+        "ext_121f2727b70a:335",
+        "ext_121f2727b70a:338",
+        "ext_121f2727b70a:341",
+        "ext_121f2727b70a:342",
+        "ext_121f2727b70a:346",
+        "ext_121f2727b70a:347",
+        "ext_121f2727b70a:351",
+        "ext_121f2727b70a:360",
+        "ext_121f2727b70a:362",
+        "ext_121f2727b70a:366",
+        "ext_121f2727b70a:379"
+      ],
+      "evidence_row_ids": [
+        "ext_99310eea280d:141",
+        "ext_99310eea280d:412",
+        "ext_99310eea280d:50",
+        "ext_99310eea280d:385",
+        "ext_99310eea280d:192",
+        "ext_99310eea280d:296",
+        "ext_99310eea280d:218",
+        "ext_99310eea280d:224",
+        "ext_99310eea280d:243",
+        "ext_99310eea280d:187",
+        "ext_99310eea280d:138",
+        "ext_99310eea280d:387",
+        "ext_99310eea280d:322",
+        "ext_99310eea280d:15",
+        "ext_99310eea280d:351",
+        "ext_99310eea280d:253",
+        "ext_99310eea280d:190",
+        "ext_99310eea280d:45",
+        "ext_99310eea280d:73",
+        "ext_99310eea280d:31",
+        "ext_99310eea280d:59",
+        "ext_99310eea280d:186",
+        "ext_99310eea280d:371",
+        "ext_99310eea280d:217",
+        "ext_99310eea280d:285",
+        "ext_99310eea280d:340",
+        "ext_99310eea280d:397",
+        "ext_99310eea280d:344",
+        "ext_99310eea280d:72",
+        "ext_99310eea280d:20",
+        "ext_99310eea280d:370",
+        "ext_99310eea280d:113",
+        "ext_99310eea280d:16",
+        "ext_99310eea280d:254",
+        "ext_99310eea280d:256",
+        "ext_99310eea280d:232",
+        "ext_99310eea280d:99",
+        "ext_99310eea280d:229",
+        "ext_99310eea280d:34",
+        "ext_99310eea280d:183",
+        "ext_99310eea280d:93",
+        "ext_99310eea280d:413",
+        "ext_99310eea280d:133",
+        "ext_99310eea280d:259",
+        "ext_99310eea280d:282",
+        "ext_99310eea280d:27",
+        "ext_99310eea280d:53",
+        "ext_99310eea280d:135",
+        "ext_99310eea280d:33",
+        "ext_99310eea280d:300",
+        "ext_99310eea280d:180",
+        "ext_99310eea280d:30",
+        "ext_99310eea280d:399",
+        "ext_99310eea280d:363",
+        "ext_99310eea280d:325",
+        "ext_99310eea280d:338",
+        "ext_99310eea280d:9",
+        "ext_99310eea280d:200"
+      ],
+      "amount": "26900.00",
+      "row_count": 58,
+      "assumption_ids": [
+        "asm_49fa01a847e4",
+        "asm_c20a8d19b8c0"
+      ]
+    },
+    {
+      "check_name": "duplicates",
+      "check_version": "1.1.0",
+      "parameters": {
+        "side": "a",
+        "compare_columns": null
+      },
+      "item_ids": [
+        "diff:[\"INV-10414\"]",
+        "diff:[\"INV-10415\"]",
+        "diff:[\"INV-10417\"]",
+        "diff:[\"INV-10416\"]"
+      ],
+      "row_ids": [
+        "ext_121f2727b70a:3",
+        "ext_121f2727b70a:286",
+        "ext_99310eea280d:292",
+        "ext_121f2727b70a:125",
+        "ext_121f2727b70a:309",
+        "ext_99310eea280d:343",
+        "ext_121f2727b70a:134",
+        "ext_121f2727b70a:261",
+        "ext_99310eea280d:335",
+        "ext_121f2727b70a:282",
+        "ext_121f2727b70a:301",
+        "ext_99310eea280d:247"
+      ],
+      "evidence_row_ids": [],
+      "amount": "735.00",
+      "row_count": 12,
+      "assumption_ids": [
+        "asm_9ad098f6bf79",
+        "asm_f51dd18fa987"
+      ]
+    },
+    {
+      "check_name": "sign_credit",
+      "check_version": "1.0.0",
+      "parameters": {
+        "mode": "sign_flip",
+        "side": null,
+        "type_column": null,
+        "credit_types": null
+      },
+      "item_ids": [
+        "diff:[\"CN-501\"]",
+        "diff:[\"CN-503\"]",
+        "diff:[\"CN-502\"]"
+      ],
+      "row_ids": [
+        "ext_121f2727b70a:126",
+        "ext_99310eea280d:263",
+        "ext_121f2727b70a:237",
+        "ext_99310eea280d:35",
+        "ext_121f2727b70a:262",
+        "ext_99310eea280d:329"
+      ],
+      "evidence_row_ids": [],
+      "amount": "850.00",
+      "row_count": 6,
+      "assumption_ids": [
+        "asm_cae356068612"
+      ]
+    },
+    {
+      "check_name": "sign_credit",
+      "check_version": "1.0.0",
+      "parameters": {
+        "mode": "missing_credit_notes",
+        "side": "b",
+        "type_column": "Type",
+        "credit_types": [
+          "ACCRECCREDIT"
+        ]
+      },
+      "item_ids": [
+        "ext_99310eea280d:132",
+        "ext_99310eea280d:333"
+      ],
+      "row_ids": [
+        "ext_99310eea280d:132",
+        "ext_99310eea280d:333"
+      ],
+      "evidence_row_ids": [],
+      "amount": "366.00",
+      "row_count": 2,
+      "assumption_ids": [
+        "asm_e0bc65eb0d0d"
+      ]
+    },
+    {
+      "check_name": "tax_basis",
+      "check_version": "1.0.0",
+      "parameters": {
+        "rate": "0.1",
+        "inclusive_side": "b"
+      },
+      "item_ids": [
+        "diff:[\"INV-10404\"]",
+        "diff:[\"INV-10413\"]",
+        "diff:[\"INV-10409\"]",
+        "diff:[\"INV-10402\"]",
+        "diff:[\"INV-10408\"]",
+        "diff:[\"INV-10411\"]",
+        "diff:[\"INV-10407\"]",
+        "diff:[\"INV-10406\"]",
+        "diff:[\"INV-10412\"]",
+        "diff:[\"INV-10403\"]",
+        "diff:[\"INV-10410\"]",
+        "diff:[\"INV-10405\"]"
+      ],
+      "row_ids": [
+        "ext_121f2727b70a:40",
+        "ext_99310eea280d:198",
+        "ext_121f2727b70a:41",
+        "ext_99310eea280d:150",
+        "ext_121f2727b70a:57",
+        "ext_99310eea280d:213",
+        "ext_121f2727b70a:113",
+        "ext_99310eea280d:101",
+        "ext_121f2727b70a:143",
+        "ext_99310eea280d:334",
+        "ext_121f2727b70a:145",
+        "ext_99310eea280d:407",
+        "ext_121f2727b70a:167",
+        "ext_99310eea280d:328",
+        "ext_121f2727b70a:171",
+        "ext_99310eea280d:230",
+        "ext_121f2727b70a:241",
+        "ext_99310eea280d:291",
+        "ext_121f2727b70a:257",
+        "ext_99310eea280d:43",
+        "ext_121f2727b70a:287",
+        "ext_99310eea280d:246",
+        "ext_121f2727b70a:297",
+        "ext_99310eea280d:157"
+      ],
+      "evidence_row_ids": [],
+      "amount": "-379.00",
+      "row_count": 24,
+      "assumption_ids": [
+        "asm_55f203347b39"
+      ]
+    },
+    {
+      "check_name": "status_filter",
+      "check_version": "1.0.0",
+      "parameters": {
+        "side": "a",
+        "status_column": "status",
+        "statuses": [
+          "VOIDED"
+        ]
+      },
+      "item_ids": [
+        "ext_121f2727b70a:212",
+        "ext_121f2727b70a:288",
+        "ext_121f2727b70a:290"
+      ],
+      "row_ids": [
+        "ext_121f2727b70a:212",
+        "ext_121f2727b70a:288",
+        "ext_121f2727b70a:290"
+      ],
+      "evidence_row_ids": [],
+      "amount": "600.00",
+      "row_count": 3,
+      "assumption_ids": [
+        "asm_90aa0b5f9072"
+      ]
+    }
+  ],
+  "checks_without_findings": [],
+  "explained": "29072.00",
+  "residual": "0.00",
+  "residual_items": [],
+  "assumptions": [
+    {
+      "id": "asm_49fa01a847e4",
+      "description": "A row dated inside the period on one side and up to 31 days outside it on the other, with the same key and amount, is one transaction recorded on a different date basis.",
+      "parameter": "timing.max_shift_days",
+      "value": 31,
+      "proposed_by": "ai",
+      "confirmed": true,
+      "confirmed_by": "Example Confirmer",
+      "confirmed_at": "2026-11-06T11:53:53.725372Z"
+    },
+    {
+      "id": "asm_c20a8d19b8c0",
+      "description": "Side A is dated by 'appointment_date' and side B by 'InvoiceDate'.",
+      "parameter": "timing.date_basis",
+      "value": [
+        "appointment_date",
+        "InvoiceDate"
+      ],
+      "proposed_by": "ai",
+      "confirmed": true,
+      "confirmed_by": "Example Confirmer",
+      "confirmed_at": "2026-11-06T11:54:37.084227Z"
+    },
+    {
+      "id": "asm_9ad098f6bf79",
+      "description": "Repeated rows on side A are duplicate copies of one transaction.",
+      "parameter": "duplicates.side",
+      "value": "a",
+      "proposed_by": "ai",
+      "confirmed": true,
+      "confirmed_by": "Example Confirmer",
+      "confirmed_at": "2026-11-06T11:54:29.335358Z"
+    },
+    {
+      "id": "asm_f51dd18fa987",
+      "description": "Rows on side A count as copies when they are identical in every column.",
+      "parameter": "duplicates.compare_columns",
+      "value": [
+        "invoice_number",
+        "appointment_date",
+        "amount",
+        "status",
+        "type"
+      ],
+      "proposed_by": "ai",
+      "confirmed": true,
+      "confirmed_by": "Example Confirmer",
+      "confirmed_at": "2026-11-06T11:55:16.405284Z"
+    },
+    {
+      "id": "asm_cae356068612",
+      "description": "Amounts equal and opposite on the two sides are the same document recorded with opposite sign conventions.",
+      "parameter": "sign_credit.sign_flip",
+      "value": true,
+      "proposed_by": "ai",
+      "confirmed": true,
+      "confirmed_by": "Example Confirmer",
+      "confirmed_at": "2026-11-06T11:54:49.007392Z"
+    },
+    {
+      "id": "asm_e0bc65eb0d0d",
+      "description": "Side B rows with a negative amount and 'Type' in ['ACCRECCREDIT'] are credit notes that side A does not include.",
+      "parameter": "sign_credit.credit_types",
+      "value": [
+        "ACCRECCREDIT"
+      ],
+      "proposed_by": "ai",
+      "confirmed": true,
+      "confirmed_by": "Example Confirmer",
+      "confirmed_at": "2026-11-06T11:55:08.356083Z"
+    },
+    {
+      "id": "asm_55f203347b39",
+      "description": "Side B amounts include tax at 10%; side A amounts exclude it.",
+      "parameter": "tax_basis.rate",
+      "value": "0.1",
+      "proposed_by": "ai",
+      "confirmed": true,
+      "confirmed_by": "Example Confirmer",
+      "confirmed_at": "2026-11-06T11:54:04.224503Z"
+    },
+    {
+      "id": "asm_90aa0b5f9072",
+      "description": "Side A includes rows whose 'status' is one of ['VOIDED']; side B excludes them.",
+      "parameter": "status_filter.statuses",
+      "value": [
+        "VOIDED"
+      ],
+      "proposed_by": "ai",
+      "confirmed": true,
+      "confirmed_by": "Example Confirmer",
+      "confirmed_at": "2026-11-06T11:54:18.643409Z"
+    }
+  ],
+  "unconfirmed_assumptions": [],
+  "supersedes": "cert_7a3979abee8227d3",
+  "certificate_hash": "1d4373f56337730ef44c88dfaa5a05710d45497936f93cf37c14096a436c0665"
+}

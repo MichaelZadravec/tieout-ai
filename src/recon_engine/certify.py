@@ -15,6 +15,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from datetime import UTC, datetime
 from decimal import Decimal
+from typing import Any
 
 from recon_engine import __version__
 from recon_engine.checks import CheckContext
@@ -43,6 +44,20 @@ def verify_certificate(cert: Certificate) -> bool:
     """True if the certificate's content still matches its hash and id."""
     digest = certificate_hash(cert)
     return digest == cert.certificate_hash and cert.id == f"cert_{digest[:16]}"
+
+
+def verify_certificate_document(document: dict[str, Any]) -> bool:
+    """True if a stored certificate, exactly as written, matches its hash and id.
+
+    Stored certificates are checked as documents, not re-serialised through the
+    current model: fields added to the model later must not break the hash of a
+    certificate issued before they existed.
+    """
+    content = {k: v for k, v in document.items() if k not in _UNHASHED}
+    digest = sha256_hex(canonical_json(content))
+    return (
+        digest == document.get("certificate_hash") and document.get("id") == f"cert_{digest[:16]}"
+    )
 
 
 def _check_conservation(ctx: CheckContext, buckets: Sequence[Bucket]) -> set[str]:
