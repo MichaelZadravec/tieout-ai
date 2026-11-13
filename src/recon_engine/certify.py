@@ -61,6 +61,109 @@ def verify_certificate_document(document: dict[str, Any]) -> bool:
     )
 
 
+def certificate_problems(cert: Certificate, confirmer_key: TrustedKey | None) -> list[str]:
+    """Every way a certificate contradicts itself. Empty for a genuine certificate.
+
+    The hash only shows a certificate was not altered after it was hashed, and
+    anyone can recompute it. So a stored certificate must also add up: its
+    buckets and residual must equal the gap, no item may be both explained and
+    unexplained, its status must follow from its content, and every confirmation
+    it counts must be signed (and verify, when this machine holds that key).
+    """
+    problems = []
+    spec, match = cert.match_spec, cert.match
+    if [e.id for e in cert.extracts] != [spec.extract_a, spec.extract_b]:
+        problems.append("its extracts are not the ones its match spec names")
+    if match.gap != match.total_a - match.total_b:
+        problems.append(f"the gap {match.gap} is not total A minus total B")
+    bucket_total = sum((b.amount for b in cert.buckets), Decimal(0))
+    if cert.explained != bucket_total:
+        problems.append(f"explained {cert.explained} is not the sum of the buckets {bucket_total}")
+    if cert.explained + cert.residual != match.gap:
+        problems.append(
+            f"explained {cert.explained} plus residual {cert.residual} does not equal the gap "
+            f"{match.gap}"
+        )
+    open_total = sum((i.amount for i in cert.residual_items), Decimal(0))
+    if cert.residual != open_total:
+        problems.append(
+            f"residual {cert.residual} is not the sum of the unexplained items {open_total}"
+        )
+    gross = sum((abs(i.amount) for i in cert.residual_items), Decimal(0))
+    if cert.gross_unexplained is not None and cert.gross_unexplained != gross:
+        problems.append(
+            f"gross unexplained {cert.gross_unexplained} is not the sum of the unexplained "
+            f"items' absolute amounts {gross}"
+        )
+
+    open_ids = {i.id for i in cert.residual_items}
+    owner: dict[str, str] = {}
+    listed = {a.id for a in cert.assumptions}
+    for bucket in cert.buckets:
+        for item_id in bucket.item_ids:
+            if item_id in open_ids:
+                problems.append(f"item {item_id} is both explained and unexplained")
+            if item_id in owner:
+                problems.append(f"item {item_id} is in more than one bucket")
+            owner[item_id] = bucket.check_name
+        for assumption_id in bucket.assumption_ids:
+            if assumption_id not in listed:
+                problems.append(
+                    f"bucket '{bucket.check_name}' cites assumption {assumption_id}, which the "
+                    "certificate does not list"
+                )
+
+    unconfirmed = set(cert.unconfirmed_assumptions)
+    for assumption_id in unconfirmed - listed:
+        problems.append(f"unconfirmed assumption {assumption_id} is not listed")
+    for assumption_id in set(cert.unverified_confirmations) - unconfirmed:
+        problems.append(f"assumption {assumption_id} could not be verified but counts as confirmed")
+    for a in cert.assumptions:
+        if a.id in unconfirmed:
+            continue
+        if not a.confirmed:
+            problems.append(f"assumption {a.id} is not confirmed but not listed as unconfirmed")
+        elif cert.confirmer_key_fingerprint is not None:
+            if not a.signature:
+                problems.append(f"the confirmation of {a.id} is not signed")
+            elif a.signing_key_fingerprint != cert.confirmer_key_fingerprint:
+                problems.append(
+                    f"the confirmation of {a.id} was signed with a different key from the one "
+                    "the certificate names"
+                )
+            elif confirmer_key and confirmer_key.fingerprint == cert.confirmer_key_fingerprint:
+                problem = confirmer_key.problem(a)
+                if problem:
+                    problems.append(f"the confirmation of {a.id} does not verify: {problem}")
+
+    if cert.residual_items or cert.residual != 0 or cert.source_warnings:
+        expected = CertificateStatus.OPEN
+    elif unconfirmed:
+        expected = CertificateStatus.PROVISIONAL
+    else:
+        expected = CertificateStatus.RECONCILED
+    if cert.status != expected:
+        problems.append(f"status {cert.status} does not follow from its content (it is {expected})")
+    return problems
+
+
+def confirmation_status(cert: Certificate, confirmer_key: TrustedKey | None = None) -> str | None:
+    """Why this machine cannot vouch for the certificate's confirmations, or None if it can."""
+    counted = [
+        a for a in cert.assumptions if a.confirmed and a.id not in cert.unconfirmed_assumptions
+    ]
+    if not counted:
+        return None
+    if cert.confirmer_key_fingerprint is None:
+        return "issued before confirmations were signed: its confirmations cannot be verified"
+    if confirmer_key is None or confirmer_key.fingerprint != cert.confirmer_key_fingerprint:
+        return (
+            f"its confirmations were signed with key {cert.confirmer_key_fingerprint}, which is "
+            "not this machine's confirmer key, so they cannot be verified here"
+        )
+    return None
+
+
 def _check_conservation(ctx: CheckContext, buckets: Sequence[Bucket]) -> set[str]:
     owner: dict[str, str] = {}
     row_owner: dict[str, str] = {}

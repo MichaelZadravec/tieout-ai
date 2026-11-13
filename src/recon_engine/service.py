@@ -15,6 +15,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
 
+from recon_engine.certify import confirmation_status
 from recon_engine.checks import list_checks as registered_checks
 from recon_engine.connections import ConnectionStoreError
 from recon_engine.connectors import connector_for
@@ -347,8 +348,16 @@ class ReconService:
         }
 
     def get_certificate(self, certificate_id: str) -> dict[str, Any]:
-        cert = self.workspace.load_certificate(certificate_id)  # verifies the hash
-        return {**self._certificate_summary(cert), "hash_verified": True}
+        # Loading verifies the hash and that the certificate is self-consistent.
+        cert = self.workspace.load_certificate(certificate_id)
+        warning = confirmation_status(cert, load_trusted_key())
+        return {
+            **self._certificate_summary(cert),
+            "hash_verified": True,
+            "self_consistent": True,
+            "confirmations_verified": warning is None,
+            "confirmation_warning": warning,
+        }
 
     @staticmethod
     def _verified(assumption: Assumption) -> bool:

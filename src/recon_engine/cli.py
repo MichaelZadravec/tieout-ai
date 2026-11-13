@@ -20,6 +20,7 @@ import typer
 
 from recon_engine import __version__
 from recon_engine.assumptions import AssumptionError
+from recon_engine.certify import confirmation_status
 from recon_engine.connections import ConnectionStoreError, file_registration
 from recon_engine.models import CertificateStatus, Connection, ConnectionType, source_names
 from recon_engine.project import init_folder
@@ -356,6 +357,9 @@ def show_certificate(
         out(
             f"Confirmations checked against {cert.confirmer}'s key {cert.confirmer_key_fingerprint}"
         )
+    warning = confirmation_status(cert, load_trusted_key())
+    if warning:
+        out(f"CONFIRMATIONS: {warning}")
     current = workspace.assumptions
     for a in sorted(cert.assumptions, key=lambda a: not a.elevated):
         if a.id in cert.unverified_confirmations:

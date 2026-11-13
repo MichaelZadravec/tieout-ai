@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any
 
 from recon_engine.assumptions import AssumptionStore
-from recon_engine.certify import certify, verify_certificate_document
+from recon_engine.certify import certificate_problems, certify, verify_certificate_document
 from recon_engine.checks import CheckContext, ProposedBy, get_check
 from recon_engine.checks.base import Side
 from recon_engine.connections import ConnectionStore
@@ -61,7 +61,14 @@ class Workspace:
         document = json.loads(path.read_text(encoding="utf-8"))
         if not verify_certificate_document(document) or document.get("id") != cert_id:
             raise CertificateError(f"Certificate '{cert_id}' does not match its hash")
-        return Certificate.model_validate(document)
+        cert = Certificate.model_validate(document)
+        problems = certificate_problems(cert, load_trusted_key())
+        if problems:
+            more = f" (and {len(problems) - 1} more)" if len(problems) > 1 else ""
+            raise CertificateError(
+                f"Certificate '{cert_id}' is not self-consistent: {problems[0]}{more}"
+            )
+        return cert
 
     def list_certificates(self) -> list[str]:
         if not self.certificate_dir.is_dir():
