@@ -92,7 +92,9 @@ class DuplicatesCheck(Check):
                 claims.append(Claim(item))
         return claims
 
-    def propose_assumptions(self, ctx: CheckContext, params: DuplicatesParams) -> list[Proposal]:
+    def propose_assumptions(
+        self, ctx: CheckContext, params: DuplicatesParams, claims: list[Claim]
+    ) -> list[Proposal]:
         repeating, once = ctx.name(params.side), ctx.name(other(params.side))
         compared = _compared(ctx, params)
         ignored = [c for c in ctx.data(params.side).extract.columns if c not in compared]

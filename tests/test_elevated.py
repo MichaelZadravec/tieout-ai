@@ -3,12 +3,14 @@
 from html import escape
 
 import pytest
-from support import fixture_context, fixture_extracts, plan_for
+from support import fixture_context, fixture_extracts, make_extract, plan_for
 from typer.testing import CliRunner
 
 from recon_engine.certify import certify
-from recon_engine.checks import get_check, run_checks
+from recon_engine.checks import CheckContext, get_check, run_checks
 from recon_engine.cli import app
+from recon_engine.match import match
+from recon_engine.models import MatchSpec, Period
 from recon_engine.render import render_html
 from recon_engine.session import Session, Workspace
 
@@ -68,23 +70,67 @@ def test_comparing_every_column_is_not_elevated():
     assert not any(a.elevated for a in assumptions_of(ctx, bucket).values())
 
 
-def test_timing_wider_than_the_default_window_is_elevated():
-    _, ctx = fixture_context("clean")
+def timing_ctx(*lags):
+    """One invoice per lag: dashboard dates it 28 Oct, xero that many days later."""
+    from datetime import date, timedelta
+
+    rows_a, rows_b = [], []
+    for n, lag in enumerate(lags):
+        key = f"INV-{n + 1}"
+        rows_a.append((key, "2026-10-28", "50.00", "PAID"))
+        rows_b.append(
+            (key, (date(2026, 10, 28) + timedelta(days=lag)).isoformat(), "50.00", "PAID")
+        )
+    a, b = make_extract(rows_a, "dashboard"), make_extract(rows_b, "xero")
+    spec = MatchSpec(
+        extract_a=a.extract.id, extract_b=b.extract.id, key_columns=["invoice_id"],
+        amount_column="amount", date_column="invoice_date",
+        period=Period(start="2026-10-01", end="2026-10-31"),
+    )  # fmt: skip
+    return CheckContext(a=a, b=b, spec=spec, result=match(a, b, spec))
+
+
+def test_timing_reports_the_largest_actual_lag():
+    ctx = timing_ctx(4, 9, 6)
+    found = assumptions_of(ctx, get_check("timing").run(ctx, {"max_shift_days": 31}))
+    lag = found["timing.max_shift_days"]
+
+    assert lag.value == {"window_days": 31, "max_lag_days": 9}
+    assert "at most 9 days apart" in lag.description
+
+
+def test_timing_is_elevated_when_an_actual_lag_exceeds_seven_days():
+    ctx = timing_ctx(4, 9)
     found = assumptions_of(ctx, get_check("timing").run(ctx, {"max_shift_days": 31}))
 
     assert found["timing.max_shift_days"].elevated is True
     assert found["timing.max_shift_days"].elevated_reason == (
-        "loosens the default: allows dates up to 31 days apart (default 7)"
+        "loosens the default: matches dates up to 9 days apart (default limit 7)"
     )
     assert found["timing.date_basis"].elevated is False
 
 
-def test_timing_within_the_default_window_is_not_elevated():
-    _, ctx = fixture_context("clean")
-    bucket = get_check("timing").run(ctx, {})
+def test_a_wide_window_is_not_elevated_when_every_actual_lag_is_short():
+    ctx = timing_ctx(4, 7, 5)
+    bucket = get_check("timing").run(ctx, {"max_shift_days": 31})
 
-    assert bucket.parameters == {"max_shift_days": 7}
+    assert len(bucket.item_ids) == 3
     assert not any(a.elevated for a in assumptions_of(ctx, bucket).values())
+
+
+def test_the_timing_window_keeps_its_hard_maximum_of_one_period():
+    from recon_engine.checks import CheckParameterError
+
+    with pytest.raises(CheckParameterError, match="at most one period"):
+        get_check("timing").run(timing_ctx(4), {"max_shift_days": 32})
+
+
+def test_clean_fixture_timing_elevation_follows_its_real_lags():
+    _, ctx = fixture_context("clean")
+    found = assumptions_of(ctx, get_check("timing").run(ctx, {"max_shift_days": 31}))
+    lag = found["timing.max_shift_days"]
+
+    assert lag.elevated is (lag.value["max_lag_days"] > 7)
 
 
 @pytest.fixture

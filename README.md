@@ -106,7 +106,8 @@ it carries a one-line reason. Elevated assumptions head the HTML certificate and
 - duplicates with `compare_columns` narrower than every column (and it can never
   leave out the match key, amount or date columns)
 - status_filter naming several spellings of one status (`VOIDED`, `Voided`)
-- timing with a window wider than the default 7 days
+- timing where a claimed row's actual lag exceeds 7 days (the window itself may be
+  up to one period; the assumption reports the largest lag found)
 - rounding (any tolerance, default $0.01, at most $0.05 per record) and
   tax_basis with a `rounding_tolerance` (at most $0.01)
 

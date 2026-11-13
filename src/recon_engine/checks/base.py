@@ -284,7 +284,7 @@ class Check(ABC):
         assumption_ids = []
         if claims:  # a hypothesis that proved nothing rests on nothing
             scope = sorted({key_label(claim.item.key) for claim in claims})
-            for proposal in self.propose_assumptions(ctx, validated):
+            for proposal in self.propose_assumptions(ctx, validated, claims):
                 assumption = Assumption.propose(
                     proposal.parameter,
                     proposal.value,
@@ -310,7 +310,9 @@ class Check(ABC):
     def prove(self, ctx: CheckContext, items: list[Item], params: Any) -> Iterable[Claim | Item]:
         """Return the open items this hypothesis proves. Return nothing if it is wrong."""
 
-    def propose_assumptions(self, ctx: CheckContext, params: Any) -> list[Proposal]:
+    def propose_assumptions(
+        self, ctx: CheckContext, params: Any, claims: list[Claim]
+    ) -> list[Proposal]:
         """What the claims rest on. Called only when the check claimed something."""
         return []
 

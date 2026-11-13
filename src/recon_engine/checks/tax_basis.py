@@ -86,7 +86,9 @@ class TaxBasisCheck(Check):
                 claims.append(Claim(item))
         return claims
 
-    def propose_assumptions(self, ctx: CheckContext, params: TaxBasisParams) -> list[Proposal]:
+    def propose_assumptions(
+        self, ctx: CheckContext, params: TaxBasisParams, claims: list[Claim]
+    ) -> list[Proposal]:
         percent = f"{(params.rate * 100).normalize():f}%"
         tolerance = params.rounding_tolerance
         including = ctx.name(params.inclusive_side)

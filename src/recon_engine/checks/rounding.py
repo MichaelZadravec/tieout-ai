@@ -61,7 +61,9 @@ class RoundingCheck(Check):
             if item.kind == "difference" and abs(item.amount) <= params.tolerance
         ]
 
-    def propose_assumptions(self, ctx: CheckContext, params: RoundingParams) -> list[Proposal]:
+    def propose_assumptions(
+        self, ctx: CheckContext, params: RoundingParams, claims: list[Claim]
+    ) -> list[Proposal]:
         tolerance = f"${params.tolerance}"
         return [
             Proposal(

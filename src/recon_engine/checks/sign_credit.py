@@ -92,7 +92,9 @@ class SignCreditCheck(Check):
                 claims.append(Claim(item))
         return claims
 
-    def propose_assumptions(self, ctx: CheckContext, params: SignCreditParams) -> list[Proposal]:
+    def propose_assumptions(
+        self, ctx: CheckContext, params: SignCreditParams, claims: list[Claim]
+    ) -> list[Proposal]:
         if params.mode == "sign_flip":
             return [
                 Proposal(

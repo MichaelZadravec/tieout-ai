@@ -2,10 +2,13 @@
 
 Typical cause: one system dates by appointment, the other by invoice date.
 
-Guardrails: the window is at most one period (default 7 days; anything wider is
-logged as an elevated assumption); the counterpart must have the same
-key and the same amount, and must be dated in the period immediately before or
-after. Each counterpart row can prove only one item.
+Guardrails: the window is at most one period (default 7 days); the counterpart
+must have the same key and the same amount, and must be dated in the period
+immediately before or after. Each counterpart row can prove only one item.
+
+The assumption reports the largest lag actually found among the claimed rows,
+and is elevated only when that lag exceeds 7 days: a wide window that only
+matched short lags loosens nothing in practice.
 """
 
 from __future__ import annotations
@@ -33,6 +36,7 @@ from recon_engine.match import as_date
 from recon_engine.models import Period
 
 DEFAULT_SHIFT_DAYS = 7
+ELEVATED_LAG_DAYS = 7  # an actual lag beyond this is an elevated assumption
 
 
 class TimingParams(CheckParams):
@@ -40,8 +44,8 @@ class TimingParams(CheckParams):
         default=DEFAULT_SHIFT_DAYS,
         ge=1,
         description="Largest number of days between the two sides' dates for one row. "
-        f"At most the length of the period. Default {DEFAULT_SHIFT_DAYS}; a wider window is "
-        "logged as an elevated assumption.",
+        f"At most the length of the period. Default {DEFAULT_SHIFT_DAYS}. Claims whose actual "
+        f"lag exceeds {ELEVATED_LAG_DAYS} days are logged as an elevated assumption.",
     )
 
 
@@ -51,7 +55,7 @@ Counterparts = dict[tuple, list[tuple[str, Decimal, date]]]
 @register
 class TimingCheck(Check):
     name = "timing"
-    version = "1.1.0"
+    version = "1.2.0"
     description = (
         "Rows inside the period on one side whose counterpart (same key, same amount) is "
         "dated in the adjacent period on the other side."
@@ -90,20 +94,22 @@ class TimingCheck(Check):
                         break
         return claims
 
-    def propose_assumptions(self, ctx: CheckContext, params: TimingParams) -> list[Proposal]:
-        days = params.max_shift_days
+    def propose_assumptions(
+        self, ctx: CheckContext, params: TimingParams, claims: list[Claim]
+    ) -> list[Proposal]:
+        lag = max(_lag(ctx, claim) for claim in claims)
         a, b = ctx.name("a"), ctx.name("b")
         return [
             Proposal(
                 "timing.max_shift_days",
-                days,
-                f"each is dated inside the period in one of {a} and {b} and up to {days} days "
-                "outside it in the other, with the same key and amount: one transaction "
-                "recorded on a different date basis.",
+                {"window_days": params.max_shift_days, "max_lag_days": lag},
+                f"each is dated inside the period in one of {a} and {b} and outside it in the "
+                f"other, at most {lag} days apart, with the same key and amount: one "
+                "transaction recorded on a different date basis.",
                 loosens=(
-                    f"loosens the default: allows dates up to {days} days apart "
-                    f"(default {DEFAULT_SHIFT_DAYS})"
-                    if days > DEFAULT_SHIFT_DAYS
+                    f"loosens the default: matches dates up to {lag} days apart "
+                    f"(default limit {ELEVATED_LAG_DAYS})"
+                    if lag > ELEVATED_LAG_DAYS
                     else None
                 ),
             ),
@@ -114,6 +120,17 @@ class TimingCheck(Check):
                 f"'{ctx.spec.date_b}'.",
             ),
         ]
+
+
+def _lag(ctx: CheckContext, claim: Claim) -> int:
+    """Days between a claimed row and the counterpart that proved it."""
+    side: Side = "a" if claim.item.kind == "only_a" else "b"
+    [row_id], [counterpart] = claim.item.row_ids, claim.evidence
+    inside_column, outside_column = ctx.date_column(side), ctx.date_column(other(side))
+    assert inside_column is not None and outside_column is not None
+    inside = as_date(ctx.value(row_id, inside_column), row_id)
+    outside = as_date(ctx.value(counterpart, outside_column), counterpart)
+    return abs((outside - inside).days)
 
 
 def _adjacent_rows(ctx: CheckContext, side: Side, period: Period, length: int) -> Counterparts:

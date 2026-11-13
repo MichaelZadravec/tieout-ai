@@ -57,7 +57,9 @@ class StatusFilterCheck(Check):
                 claims.append(Claim(item))
         return claims
 
-    def propose_assumptions(self, ctx: CheckContext, params: StatusFilterParams) -> list[Proposal]:
+    def propose_assumptions(
+        self, ctx: CheckContext, params: StatusFilterParams, claims: list[Claim]
+    ) -> list[Proposal]:
         including, excluding = ctx.name(params.side), ctx.name(other(params.side))
         statuses = ", ".join(repr(s) for s in params.statuses)
         spellings: dict[str, list[str]] = {}
