@@ -25,6 +25,11 @@ This is NOT an app, NOT a Claude wrapper, and NOT an analytics/dashboard tool.
 7. **Assumptions are explicit.** Every parameter that affects the result (filters, exclusions, date basis, key choice) is logged as an Assumption. Only a human can confirm one, via the CLI. Confirmation is never exposed via MCP, so the AI can't self-confirm.
 8. **Guarded tests.** Each test has hard limits (e.g. timing window max ±1 period; a status test only counts rows whose status actually matches in the source).
 9. **Versioned.** Certificates record the engine version and test versions.
+10. **The on-disk stores are the only source of truth.** Never cache them across calls.
+11. **Loosening is elevated.** Any parameter or filter that loosens a default must produce an elevated assumption.
+12. **Sources are what was registered.** File sources must match their registered hash; SQL must not truncate.
+13. **Signed confirmations.** Confirmations are valid only if signed with the confirmer's key.
+14. **Humans register, refresh and confirm.** Anything that registers, refreshes or confirms is human-only and interactive.
 
 ## 3. Architecture
 
