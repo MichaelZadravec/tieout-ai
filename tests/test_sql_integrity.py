@@ -180,3 +180,13 @@ def test_a_server_database_has_no_file_to_hash(tmp_path):
     assert sqlite_file("postgresql://reader@db.example/finance") is None
     assert sqlite_file("sqlite:///:memory:") is None
     assert sqlite_file(f"sqlite:///{tmp_path / 'x.sqlite'}") == tmp_path / "x.sqlite"
+
+
+def test_run_query_reports_computed_columns(tmp_path, ledger):
+    workspace = Workspace(tmp_path)
+    workspace.connections.add(ledger)
+    summary = ReconService(workspace).run_query(
+        "ledger", "SELECT invoice_id, amount * 2 AS amount FROM invoices"
+    )
+
+    assert summary["computed_columns"] == {"amount": "amount * 2"}

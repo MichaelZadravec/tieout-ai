@@ -62,6 +62,7 @@ def _extract_summary(extract: Extract) -> dict[str, Any]:
             "query_filters": [
                 {"clause": f.clause, "sql": f.sql, "plain": f.plain} for f in extract.query_filters
             ],
+            "computed_columns": extract.computed_columns,
         }
     )
 
