@@ -107,6 +107,7 @@ class ReconService:
                 "gap": ctx.result.gap,
                 "explained_so_far": explained,
                 "residual": ctx.result.gap - explained,
+                "gross_unexplained": sum((abs(i.amount) for i in open_items), Decimal(0)),
                 "open_items": len(open_items),
                 "open_items_by_kind": dict(Counter(i.kind for i in open_items)),
             }
@@ -358,6 +359,7 @@ class ReconService:
                 "gap": cert.match.gap,
                 "explained": cert.explained,
                 "residual": cert.residual,
+                "gross_unexplained": cert.gross,
                 "unexplained_items": len(cert.residual_items),
                 "buckets": [
                     {

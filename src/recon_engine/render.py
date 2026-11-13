@@ -192,7 +192,9 @@ def render_html(cert: Certificate) -> str:
   <thead><tr><th>Explanation</th><th class="num">Rows</th><th class="num">Amount</th></tr></thead>
   <tbody>
     {bucket_rows or '<tr><td colspan="3" class="meta">No explanations were proven.</td></tr>'}
-    <tr class="{residual_class}"><td>Unexplained (residual), {len(cert.residual_items):,} items</td>
+    <tr class="{residual_class}"><td>Unexplained (net residual), {len(cert.residual_items):,} items
+      <div class="meta">Gross {money(cert.gross)}: the open items' amounts before they offset
+      each other</div></td>
       <td class="num"></td><td class="num">{money(cert.residual)}</td></tr>
     <tr class="total"><td>Gap ({_e(name_a)} &minus; {_e(name_b)})</td><td class="num"></td>
       <td class="num">{money(cert.match.gap)}</td></tr>
@@ -246,6 +248,7 @@ def render_html(cert: Certificate) -> str:
     status_badge = f'<span class="badge {_BADGE[cert.status]}">{cert.status.value}</span>'
     supersedes = f" · supersedes {_e(cert.supersedes)}" if cert.supersedes else ""
     residual_tile = "residual" + ("" if cert.residual == 0 else " nonzero")
+    gross_tile = "residual" + ("" if cert.gross == 0 else " nonzero")
     a, b = _e(name_a), _e(name_b)
     return f"""<!doctype html>
 <html lang="en">
@@ -266,7 +269,8 @@ def render_html(cert: Certificate) -> str:
     <div class="tile"><div class="label">{_e(name_b)} total</div><div class="value">{money(cert.match.total_b)}</div></div>
     <div class="tile"><div class="label">Gap</div><div class="value">{money(cert.match.gap)}</div></div>
     <div class="tile"><div class="label">Explained</div><div class="value">{money(cert.explained)}</div></div>
-    <div class="tile {residual_tile}"><div class="label">Unexplained</div><div class="value">{money(cert.residual)}</div></div>
+    <div class="tile {residual_tile}"><div class="label">Unexplained (net)</div><div class="value">{money(cert.residual)}</div></div>
+    <div class="tile {gross_tile}"><div class="label">Unexplained (gross)</div><div class="value">{money(cert.gross)}</div></div>
   </div>
 
   <h2>How the gap is explained</h2>

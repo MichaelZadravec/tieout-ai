@@ -183,7 +183,8 @@ def show_certificate(
     amount_line(f"Gap ({name_a} - {name_b})", cert.match.gap)
     for bucket in cert.buckets:
         amount_line(f"{bucket.check_name} ({bucket.row_count} rows)", bucket.amount, indent=4)
-    amount_line("Unexplained", cert.residual, note=f"  ({len(cert.residual_items)} items)")
+    amount_line("Unexplained (net)", cert.residual, note=f"  ({len(cert.residual_items)} items)")
+    amount_line("Unexplained (gross)", cert.gross, note="  (before items offset)")
     quality = sum(1 for i in cert.residual_items if i.kind == "data_quality")
     if quality:
         out(f"    of which {quality} are data-quality items (e.g. empty amounts)")

@@ -187,6 +187,7 @@ def certify(
             )
             for item in open_items
         ],
+        gross_unexplained=sum((abs(item.amount) for item in open_items), Decimal(0)),
         assumptions=assumptions,
         unconfirmed_assumptions=unconfirmed,
         supersedes=supersedes,

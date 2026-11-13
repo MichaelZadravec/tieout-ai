@@ -323,10 +323,20 @@ class Certificate(_Model):
     explained: Decimal
     residual: Decimal
     residual_items: list[ResidualItem]
+    # Sum of the absolute amounts of the residual items. None only on certificates
+    # issued before the field existed; use `gross` to read it either way.
+    gross_unexplained: Decimal | None = None
     assumptions: list[Assumption]
     unconfirmed_assumptions: list[str]
     supersedes: str | None = None
     certificate_hash: str
+
+    @property
+    def gross(self) -> Decimal:
+        """How much is unexplained before differences offset each other."""
+        if self.gross_unexplained is not None:
+            return self.gross_unexplained
+        return sum((abs(item.amount) for item in self.residual_items), Decimal(0))
 
     @property
     def assumptions_confirmed(self) -> bool:
