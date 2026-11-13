@@ -55,6 +55,8 @@ def _extract_summary(extract: Extract) -> dict[str, Any]:
             "column_totals": extract.column_totals,
             "data_hash": extract.data_hash,
             "fetched_at": extract.fetched_at,
+            "changed_since_registration": extract.changed_since_registration,
+            "source_warning": extract.source_warning,
         }
     )
 
@@ -349,6 +351,12 @@ class ReconService:
             "OPEN": "Some differences are unexplained. Inspect them with list_open_items, try "
             "further checks, or report them as unexplained.",
         }[cert.status.value]
+        if cert.source_warnings:
+            next_step = (
+                "A source cannot be trusted as registered (see source_warnings), so this "
+                "certificate stays OPEN however well it balances. Report the warning; only a "
+                "person can check the source and refresh it."
+            )
         return _json(
             {
                 "certificate_id": cert.id,
@@ -380,6 +388,7 @@ class ReconService:
                     for a in cert.assumptions
                     if a.elevated
                 ],
+                "source_warnings": cert.source_warnings,
                 "certificate_hash": cert.certificate_hash,
                 "next_step": next_step,
             }

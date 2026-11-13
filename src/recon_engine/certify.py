@@ -145,7 +145,8 @@ def certify(
     )
     assumptions = ctx.assumptions.get_many(assumption_ids)
     unconfirmed = [a.id for a in assumptions if not a.confirmed]
-    if open_items or residual != 0:
+    source_warnings = [e.source_warning for e in (ctx.a.extract, ctx.b.extract) if e.source_warning]
+    if open_items or residual != 0 or source_warnings:
         status = CertificateStatus.OPEN
     elif unconfirmed:
         status = CertificateStatus.PROVISIONAL
@@ -187,6 +188,7 @@ def certify(
             )
             for item in open_items
         ],
+        source_warnings=source_warnings,
         gross_unexplained=sum((abs(item.amount) for item in open_items), Decimal(0)),
         assumptions=assumptions,
         unconfirmed_assumptions=unconfirmed,

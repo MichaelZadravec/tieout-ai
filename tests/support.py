@@ -60,19 +60,33 @@ CLEAN_PLAN = {
 }
 
 
+def registered_file(conn_id: str, path: Path):
+    """A file connection as `recon connections add-file` records it, hash and all."""
+    from recon_engine.connections import file_registration
+    from recon_engine.models import Connection, ConnectionType
+
+    registered = {
+        **file_registration(path),
+        "registered_by": "test",
+        "registered_at": "2026-11-01T00:00:00+00:00",
+    }
+    return Connection(
+        id=conn_id,
+        type=ConnectionType.FILE,
+        config={"path": str(path), "registered": registered},
+    )
+
+
 def fixture_extracts(kind: str = "clean"):
     """Load a committed fixture pair: (manifest, extract A, extract B, MatchSpec)."""
     from recon_engine.connectors.files import FileConnector
-    from recon_engine.models import Connection, ConnectionType, MatchSpec
+    from recon_engine.models import MatchSpec
 
     dashboard, xero, manifest_file = FIXTURE_FILES[kind]
     manifest = json.loads((FIXTURE_DATA / manifest_file).read_text(encoding="utf-8"))
 
     def load(conn_id, name):
-        conn = Connection(
-            id=conn_id, type=ConnectionType.FILE, config={"path": str(FIXTURE_DATA / name)}
-        )
-        return FileConnector(conn).fetch()
+        return FileConnector(registered_file(conn_id, FIXTURE_DATA / name)).fetch()
 
     a, b = load("dashboard", dashboard), load("xero", xero)
     spec = MatchSpec(
@@ -126,17 +140,10 @@ FIXTURE_MATCH_ARGS = {
 
 def fixture_workspace(root: Path, kind: str = "clean"):
     """A workspace whose connections 'dashboard' and 'xero' point at a fixture pair."""
-    from recon_engine.models import Connection, ConnectionType
     from recon_engine.session import Workspace
 
     dashboard, xero, _ = FIXTURE_FILES[kind]
     workspace = Workspace(root)
     for conn_id, name in (("dashboard", dashboard), ("xero", xero)):
-        workspace.connections.add(
-            Connection(
-                id=conn_id,
-                type=ConnectionType.FILE,
-                config={"path": str(FIXTURE_DATA / name)},
-            )
-        )
+        workspace.connections.add(registered_file(conn_id, FIXTURE_DATA / name))
     return workspace

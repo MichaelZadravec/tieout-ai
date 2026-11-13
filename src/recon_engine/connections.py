@@ -7,6 +7,10 @@ sees a path, URL or password.
 
 The file on disk is the only source of truth: every call reads it afresh, so a
 connection added in a terminal is visible to a running MCP server at once.
+
+A file connection records the file's hash, size and modified time when a person
+registers it (`file_registration`). Every read re-hashes the file, so an edit
+made after registration, by anyone, is caught.
 """
 
 from __future__ import annotations
@@ -14,13 +18,26 @@ from __future__ import annotations
 import json
 import os
 import tempfile
+from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
+from recon_engine.hashing import hash_file
 from recon_engine.models import Connection, ConnectionType
 
 
 class ConnectionStoreError(Exception):
     """A connection is unknown or invalid."""
+
+
+def file_registration(path: Path) -> dict[str, Any]:
+    """What a person vouches for when registering a file: its exact bytes."""
+    stat = path.stat()
+    return {
+        "sha256": hash_file(path),
+        "size": stat.st_size,
+        "modified": datetime.fromtimestamp(stat.st_mtime, UTC).isoformat(),
+    }
 
 
 class ConnectionStore:

@@ -1,8 +1,9 @@
-"""Command-line interface. Human-only actions (confirming assumptions) live here.
+"""Command-line interface. Human-only actions live here.
 
-The MCP server never exposes `confirm`. On top of that, `recon confirm` only runs
-in an interactive terminal and asks the person to retype a random code, so it
-cannot be driven by piped input, a script, or an AI agent's shell tool.
+Confirming an assumption and refreshing a registered file are things only a
+person may do. The MCP server never exposes them, and both run only in an
+interactive terminal and ask the person to retype a random code, so they cannot
+be driven by piped input, a script, or an AI agent's shell tool.
 """
 
 from __future__ import annotations
@@ -10,6 +11,7 @@ from __future__ import annotations
 import getpass
 import secrets
 import sys
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated
 
@@ -17,7 +19,7 @@ import typer
 
 from recon_engine import __version__
 from recon_engine.assumptions import AssumptionError
-from recon_engine.connections import ConnectionStoreError
+from recon_engine.connections import ConnectionStoreError, file_registration
 from recon_engine.models import CertificateStatus, Connection, ConnectionType, source_names
 from recon_engine.render import money, render_html
 from recon_engine.session import CertificateError, Workspace
@@ -54,6 +56,26 @@ def _fail(message: str) -> None:
     raise typer.Exit(1)
 
 
+def _require_terminal(command: str) -> None:
+    if not _stdin_is_tty():
+        _fail(
+            f"{command} must be run by a person in an interactive terminal; "
+            "it does not accept piped or scripted input."
+        )
+
+
+def _person_retypes_code(action: str) -> bool:
+    code = _confirmation_code()
+    typed = typer.prompt(
+        f"Type {code} to {action} (anything else cancels)", default="", show_default=False
+    )
+    return typed.strip().upper() == code
+
+
+def _now() -> str:
+    return datetime.now(UTC).isoformat()
+
+
 @app.callback()
 def main(
     ctx: typer.Context,
@@ -82,12 +104,7 @@ def confirm(
     ] = None,
 ) -> None:
     """Confirm an assumption. Interactive only: you retype a code to prove you are here."""
-    if not _stdin_is_tty():
-        _fail(
-            "recon confirm must be run by a person in an interactive terminal; "
-            "it does not accept piped or scripted input."
-        )
-        return
+    _require_terminal("recon confirm")
     store = _workspace(ctx).assumptions
     try:
         assumption = store.get(assumption_id)
@@ -101,11 +118,7 @@ def confirm(
     typer.echo(f"Assumption {assumption.id} (proposed by {assumption.proposed_by}):")
     typer.echo(f"  {assumption.description}")
     typer.echo(f"  {assumption.parameter} = {assumption.value}")
-    code = _confirmation_code()
-    typed = typer.prompt(
-        f"Type {code} to confirm (anything else cancels)", default="", show_default=False
-    )
-    if typed.strip().upper() != code:
+    if not _person_retypes_code("confirm"):
         _fail("The code did not match; nothing was confirmed.")
         return
     confirmed = store.confirm(assumption_id, by or getpass.getuser())
@@ -194,6 +207,10 @@ def show_certificate(
     if cert.supersedes:
         out(f"  Supersedes {cert.supersedes}")
     out("")
+    for warning in cert.source_warnings:
+        out(f"SOURCE WARNING: {warning}")
+    if cert.source_warnings:
+        out("")
 
     if cert.unconfirmed_assumptions:
         out(f"UNCONFIRMED: {len(cert.unconfirmed_assumptions)} assumption(s) were not confirmed")
@@ -234,19 +251,82 @@ def add_file_connection(
     connection_id: Annotated[str, typer.Argument(help="Short ID, e.g. dashboard.")],
     path: Annotated[Path, typer.Argument(help="CSV or Excel file.")],
     replace: Annotated[bool, typer.Option("--replace", help="Overwrite an existing ID.")] = False,
+    by: Annotated[
+        str | None,
+        typer.Option("--by", help="Name of the person registering it (default: your login)."),
+    ] = None,
 ) -> None:
-    """Add a CSV or Excel file as a data source."""
+    """Add a CSV or Excel file as a data source, recording its hash."""
     resolved = path.resolve()
     if not resolved.is_file():
         _fail(f"No file at {resolved}")
         return
-    conn = Connection(id=connection_id, type=ConnectionType.FILE, config={"path": str(resolved)})
+    registered = {
+        **file_registration(resolved),
+        "registered_by": by or getpass.getuser(),
+        "registered_at": _now(),
+    }
+    conn = Connection(
+        id=connection_id,
+        type=ConnectionType.FILE,
+        config={"path": str(resolved), "registered": registered},
+    )
     try:
         _workspace(ctx).connections.add(conn, replace=replace)
     except ConnectionStoreError as error:
         _fail(str(error))
         return
     typer.echo(f"Added file connection '{connection_id}' -> {resolved}")
+    typer.echo(f"  Registered sha256 {registered['sha256'][:16]}... ({registered['size']:,} bytes)")
+    typer.echo("  If the file changes, certificates stay OPEN until a person runs")
+    typer.echo(f"  `recon connections refresh {connection_id}`.")
+
+
+@connections_app.command("refresh")
+def refresh_file_connection(
+    ctx: typer.Context,
+    connection_id: Annotated[str, typer.Argument(help="File connection to re-register.")],
+    by: Annotated[
+        str | None,
+        typer.Option("--by", help="Name of the person refreshing it (default: your login)."),
+    ] = None,
+) -> None:
+    """Re-register a file whose contents you have checked. Interactive only."""
+    _require_terminal("recon connections refresh")
+    store = _workspace(ctx).connections
+    try:
+        conn = store.get(connection_id)
+    except ConnectionStoreError as error:
+        _fail(str(error))
+        return
+    if conn.type != ConnectionType.FILE:
+        _fail(f"Connection '{connection_id}' is not a file connection")
+        return
+    path = Path(conn.config["path"])
+    if not path.is_file():
+        _fail(f"No file at {path}")
+        return
+    previous = conn.config.get("registered") or {}
+    current = file_registration(path)
+    typer.echo(f"Connection '{connection_id}' -> {path}")
+    typer.echo(f"  registered sha256 {str(previous.get('sha256', 'none'))[:16]}...")
+    typer.echo(f"  file now   sha256 {current['sha256'][:16]}... ({current['size']:,} bytes)")
+    typer.echo("Refresh only if you have checked the file is the right one.")
+    if not _person_retypes_code("re-register it"):
+        _fail("The code did not match; nothing was changed.")
+        return
+    registered = {
+        **current,
+        "registered_by": previous.get("registered_by"),
+        "registered_at": previous.get("registered_at"),
+        "refreshed_by": by or getpass.getuser(),
+        "refreshed_at": _now(),
+    }
+    store.add(
+        conn.model_copy(update={"config": {**conn.config, "registered": registered}}),
+        replace=True,
+    )
+    typer.echo(f"Refreshed '{connection_id}' by {registered['refreshed_by']}.")
 
 
 @connections_app.command("add-sql")
@@ -299,6 +379,12 @@ def list_connections(ctx: typer.Context) -> None:
             where = make_url(conn.config["url"]).render_as_string(hide_password=True)
         else:
             where = conn.config.get("path", "")
+            registered = conn.config.get("registered")
+            where += (
+                f"  (sha256 {registered['sha256'][:12]}...)"
+                if registered
+                else "  (no file hash: run `recon connections refresh`)"
+            )
         typer.echo(f"{conn.id}  [{conn.type.value}]  {where}")
 
 

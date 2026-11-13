@@ -113,6 +113,18 @@ it carries a one-line reason. Elevated assumptions head the HTML certificate and
 
 Everything a person reads calls each side by its connection name, not "side A/B".
 
+## File sources are hashed when registered
+
+`recon connections add-file` records the file's SHA-256, size and modified time,
+and who registered it. Every read hashes the bytes it parses and compares. If the
+file has changed since (or was added before hashing existed), the extract carries
+a warning naming the file and no certificate built on it can be better than OPEN.
+After checking the file, a person re-registers it, interactively, with:
+
+```bash
+uv run recon connections refresh <connection_id>
+```
+
 ## Confirming assumptions (people only)
 
 `recon confirm` runs only in an interactive terminal and asks you to retype a

@@ -47,6 +47,7 @@ h2 { font-size: 16px; margin: 32px 0 10px; padding-bottom: 6px; border-bottom: 1
 .banner { margin: 20px 0; padding: 12px 16px; border-radius: 8px; }
 .banner.warn { background: var(--warn-bg); color: var(--warn); border: 1px solid #f0c98a; }
 .banner.ok { background: var(--ok-bg); color: var(--ok); border: 1px solid #b7dcc5; }
+.banner.bad { background: var(--bad-bg); color: var(--bad); border: 1px solid #f1b8b2; }
 .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-top: 20px; }
 .tile { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; }
 .tile .label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .05em; }
@@ -245,6 +246,10 @@ def render_html(cert: Certificate) -> str:
 <table><thead><tr><th>Key</th><th>Where</th><th class="num">Amount</th></tr></thead>
 <tbody>{rows}</tbody></table>{more}"""
 
+    source_banner = "".join(
+        f'<div class="banner bad"><strong>Source warning.</strong> {_e(w)}</div>'
+        for w in cert.source_warnings
+    )
     status_badge = f'<span class="badge {_BADGE[cert.status]}">{cert.status.value}</span>'
     supersedes = f" · supersedes {_e(cert.supersedes)}" if cert.supersedes else ""
     residual_tile = "residual" + ("" if cert.residual == 0 else " nonzero")
@@ -262,6 +267,7 @@ def render_html(cert: Certificate) -> str:
 <main>
   <h1>Reconciliation certificate {status_badge}</h1>
   <div class="meta">{_e(cert.id)} · issued {_e(cert.created_at.isoformat())} · period {_e(period)}{supersedes}</div>
+  {source_banner}
   {banner}
   {elevated}
   <div class="tiles">

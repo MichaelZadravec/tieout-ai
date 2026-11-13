@@ -107,6 +107,15 @@ def sha256_hex(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
+def hash_file(path) -> str:
+    """SHA-256 of a file's bytes, read in chunks."""
+    digest = hashlib.sha256()
+    with open(path, "rb") as fh:
+        for chunk in iter(lambda: fh.read(1 << 20), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
 def hash_query(query_text: str) -> str:
     """Hash of the exact query text the engine ran."""
     return sha256_hex(query_text.encode("utf-8"))

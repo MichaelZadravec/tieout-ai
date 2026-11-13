@@ -45,6 +45,10 @@ class Extract(_Model):
     column_totals: dict[str, Decimal]
     data_hash: str
     fetched_at: datetime
+    # File sources: whether the file differs from the one a person registered, and
+    # a warning for a person when the source cannot be trusted as registered.
+    changed_since_registration: bool = False
+    source_warning: str | None = None
 
 
 @dataclass(frozen=True)
@@ -323,6 +327,9 @@ class Certificate(_Model):
     explained: Decimal
     residual: Decimal
     residual_items: list[ResidualItem]
+    # Sources that cannot be trusted as registered (e.g. a file edited after a person
+    # registered it). Any warning keeps the certificate OPEN.
+    source_warnings: list[str] = Field(default_factory=list)
     # Sum of the absolute amounts of the residual items. None only on certificates
     # issued before the field existed; use `gross` to read it either way.
     gross_unexplained: Decimal | None = None
