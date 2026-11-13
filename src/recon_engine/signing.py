@@ -2,8 +2,11 @@
 
 `recon keys init` creates an Ed25519 keypair. The private key is encrypted with a
 passphrase the person chooses and lives outside the workspace, in the user
-profile (`%APPDATA%\\recon\\keys` on Windows, `~/.config/recon/keys` elsewhere,
-or $RECON_KEYS_DIR). The key records the name of its owner.
+profile (`~/.recon/keys`, i.e. `%USERPROFILE%\\.recon\\keys` on Windows, or
+$RECON_KEYS_DIR). The key records the name of its owner. It is deliberately not
+under %APPDATA%: Windows redirects a packaged app's writes there to a private
+copy, so the Claude desktop app's MCP server and a person's own terminal could
+see two different keys.
 
 `recon confirm` asks for the passphrase and signs the assumption's ID, a hash of
 its content, the confirmer's name and the time. `certify` verifies every
@@ -18,7 +21,6 @@ from __future__ import annotations
 import base64
 import json
 import os
-import sys
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -58,9 +60,7 @@ def keys_dir() -> Path:
     override = os.environ.get("RECON_KEYS_DIR")
     if override:
         return Path(override)
-    if sys.platform == "win32" and os.environ.get("APPDATA"):
-        return Path(os.environ["APPDATA"]) / "recon" / "keys"
-    return Path.home() / ".config" / "recon" / "keys"
+    return Path.home() / ".recon" / "keys"
 
 
 def fingerprint(public_key: Ed25519PublicKey) -> str:

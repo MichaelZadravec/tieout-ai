@@ -207,12 +207,15 @@ def test_short_passphrases_are_refused(tmp_path):
         init_keys("X", "short", tmp_path)
 
 
-def test_keys_live_in_the_user_profile_not_the_workspace(monkeypatch, tmp_path):
+def test_keys_live_in_the_user_profile_not_the_workspace_or_appdata(monkeypatch, tmp_path):
+    """Not %APPDATA%: Windows redirects a packaged app's writes there (the Claude desktop
+    app's MCP server would then read a different key from the one made in a terminal)."""
     monkeypatch.delenv("RECON_KEYS_DIR")
-    monkeypatch.setenv("APPDATA", str(tmp_path / "Roaming"))
-    monkeypatch.setattr("sys.platform", "win32")
+    monkeypatch.setenv("USERPROFILE", str(tmp_path / "me"))
+    monkeypatch.setenv("HOME", str(tmp_path / "me"))
+    monkeypatch.setenv("APPDATA", str(tmp_path / "me" / "AppData" / "Roaming"))
 
-    assert keys_dir() == tmp_path / "Roaming" / "recon" / "keys"
+    assert keys_dir() == tmp_path / "me" / ".recon" / "keys"
 
 
 def test_the_signature_covers_the_confirmation_time(session):

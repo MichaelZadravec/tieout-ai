@@ -166,7 +166,7 @@ must confirm it before the certificate can be RECONCILED.
 
 A confirmation counts only if it is signed with the confirmer's key. Create your
 key once (it asks for a passphrase; the private key is stored encrypted in your
-user profile, `%APPDATA%\recon\keys` on Windows, never in the workspace):
+user profile, `%USERPROFILE%\.recon\keys` on Windows, never in the workspace):
 
 ```bash
 uv run recon keys init --name "Your Name"
