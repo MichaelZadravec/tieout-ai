@@ -151,6 +151,16 @@ After checking the file, a person re-registers it, interactively, with:
 uv run recon connections refresh <connection_id>
 ```
 
+## Connections are signed by the person who registers them
+
+`recon connections add-file`, `add-sql` and `refresh` run only in an interactive
+terminal and ask for your confirmer key's passphrase. Each signs the whole
+connection record (ID, type, path or URL, and the file's hash). The engine reads
+only through connections whose record verifies against this machine's confirmer
+key, so a connection added to `connections.json` by hand, or a registration
+rewritten there, is refused. `recon connections list` and `list_connections`
+say which connections are signed.
+
 ## SQL must not truncate, and its filters are assumptions
 
 A SQL extract must return every row it selects: `LIMIT`, `TOP`, `OFFSET`,

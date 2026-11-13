@@ -21,13 +21,19 @@ import typer
 from recon_engine import __version__
 from recon_engine.assumptions import AssumptionError
 from recon_engine.certify import confirmation_status
-from recon_engine.connections import ConnectionStoreError, file_registration
+from recon_engine.connections import (
+    ConnectionStoreError,
+    connection_problem,
+    file_registration,
+    sign_connection,
+)
 from recon_engine.models import CertificateStatus, Connection, ConnectionType, source_names
 from recon_engine.project import init_folder
 from recon_engine.render import money, render_html
 from recon_engine.session import CertificateError, Workspace
 from recon_engine.signing import (
     MIN_PASSPHRASE,
+    Signer,
     SigningError,
     init_keys,
     keys_dir,
@@ -399,19 +405,19 @@ def add_file_connection(
     connection_id: Annotated[str, typer.Argument(help="Short ID, e.g. dashboard.")],
     path: Annotated[Path, typer.Argument(help="CSV or Excel file.")],
     replace: Annotated[bool, typer.Option("--replace", help="Overwrite an existing ID.")] = False,
-    by: Annotated[
-        str | None,
-        typer.Option("--by", help="Name of the person registering it (default: your login)."),
-    ] = None,
 ) -> None:
-    """Add a CSV or Excel file as a data source, recording its hash."""
+    """Register a CSV or Excel file, signed with your key. Interactive only."""
+    _require_terminal("recon connections add-file")
     resolved = path.resolve()
     if not resolved.is_file():
         _fail(f"No file at {resolved}")
         return
+    signer = _unlock_key("register it")
+    if signer is None:
+        return
     registered = {
         **file_registration(resolved),
-        "registered_by": by or getpass.getuser(),
+        "registered_by": signer.owner,
         "registered_at": _now(),
     }
     conn = Connection(
@@ -419,27 +425,20 @@ def add_file_connection(
         type=ConnectionType.FILE,
         config={"path": str(resolved), "registered": registered},
     )
-    try:
-        _workspace(ctx).connections.add(conn, replace=replace)
-    except ConnectionStoreError as error:
-        _fail(str(error))
+    if not _store_signed(ctx, conn, signer, replace):
         return
-    typer.echo(f"Added file connection '{connection_id}' -> {resolved}")
+    typer.echo(f"Added file connection '{connection_id}' -> {resolved}, signed by {signer.owner}")
     typer.echo(f"  Registered sha256 {registered['sha256'][:16]}... ({registered['size']:,} bytes)")
     typer.echo("  If the file changes, certificates stay OPEN until a person runs")
     typer.echo(f"  `recon connections refresh {connection_id}`.")
 
 
 @connections_app.command("refresh")
-def refresh_file_connection(
+def refresh_connection(
     ctx: typer.Context,
-    connection_id: Annotated[str, typer.Argument(help="File connection to re-register.")],
-    by: Annotated[
-        str | None,
-        typer.Option("--by", help="Name of the person refreshing it (default: your login)."),
-    ] = None,
+    connection_id: Annotated[str, typer.Argument(help="Connection to re-register.")],
 ) -> None:
-    """Re-register a file whose contents you have checked. Interactive only."""
+    """Re-register a source you have checked, signed with your key. Interactive only."""
     _require_terminal("recon connections refresh")
     store = _workspace(ctx).connections
     try:
@@ -447,34 +446,38 @@ def refresh_file_connection(
     except ConnectionStoreError as error:
         _fail(str(error))
         return
-    if conn.type != ConnectionType.FILE:
-        _fail(f"Connection '{connection_id}' is not a file connection")
+    source = _registered_file(conn)
+    if source is None:
+        _fail(
+            f"Connection '{connection_id}' has no file to re-register; "
+            "re-add it with `--replace` instead"
+        )
         return
-    path = Path(conn.config["path"])
-    if not path.is_file():
-        _fail(f"No file at {path}")
+    if not source.is_file():
+        _fail(f"No file at {source}")
         return
     previous = conn.config.get("registered") or {}
-    current = file_registration(path)
-    typer.echo(f"Connection '{connection_id}' -> {path}")
+    current = file_registration(source)
+    typer.echo(f"Connection '{connection_id}' -> {source}")
     typer.echo(f"  registered sha256 {str(previous.get('sha256', 'none'))[:16]}...")
     typer.echo(f"  file now   sha256 {current['sha256'][:16]}... ({current['size']:,} bytes)")
     typer.echo("Refresh only if you have checked the file is the right one.")
     if not _person_retypes_code("re-register it"):
         _fail("The code did not match; nothing was changed.")
         return
+    signer = _unlock_key("re-register it")
+    if signer is None:
+        return
     registered = {
         **current,
         "registered_by": previous.get("registered_by"),
         "registered_at": previous.get("registered_at"),
-        "refreshed_by": by or getpass.getuser(),
+        "refreshed_by": signer.owner,
         "refreshed_at": _now(),
     }
-    store.add(
-        conn.model_copy(update={"config": {**conn.config, "registered": registered}}),
-        replace=True,
-    )
-    typer.echo(f"Refreshed '{connection_id}' by {registered['refreshed_by']}.")
+    updated = conn.model_copy(update={"config": {**conn.config, "registered": registered}})
+    if _store_signed(ctx, updated, signer, replace=True):
+        typer.echo(f"Refreshed '{connection_id}', signed by {signer.owner}.")
 
 
 @connections_app.command("add-sql")
@@ -491,9 +494,10 @@ def add_sql_connection(
     ] = None,
     replace: Annotated[bool, typer.Option("--replace", help="Overwrite an existing ID.")] = False,
 ) -> None:
-    """Add a SQL database. Use a read-only database user."""
+    """Register a SQL database, signed with your key. Use a read-only database user."""
     from sqlalchemy.engine import make_url
 
+    _require_terminal("recon connections add-sql")
     if url is None:
         url = typer.prompt("Database URL", hide_input=True)
     try:
@@ -501,14 +505,19 @@ def add_sql_connection(
     except Exception:
         _fail("That is not a valid SQLAlchemy URL")
         return
-    conn = Connection(id=connection_id, type=ConnectionType.SQL, config={"url": url})
-    try:
-        _workspace(ctx).connections.add(conn, replace=replace)
-    except ConnectionStoreError as error:
-        _fail(str(error))
+    signer = _unlock_key("register it")
+    if signer is None:
+        return
+    conn = Connection(
+        id=connection_id,
+        type=ConnectionType.SQL,
+        config={"url": url, "registered": {"registered_by": signer.owner, "registered_at": _now()}},
+    )
+    if not _store_signed(ctx, conn, signer, replace):
         return
     typer.echo(
         f"Added SQL connection '{connection_id}' -> {parsed.render_as_string(hide_password=True)}"
+        f", signed by {signer.owner}"
     )
     typer.echo("Use a read-only database user: the engine only runs SELECTs, but defence in depth.")
 
@@ -522,18 +531,49 @@ def list_connections(ctx: typer.Context) -> None:
     if not connections:
         typer.echo("No connections yet.")
         return
+    key = load_trusted_key()
     for conn in connections:
         if conn.type == ConnectionType.SQL:
             where = make_url(conn.config["url"]).render_as_string(hide_password=True)
         else:
             where = conn.config.get("path", "")
-            registered = conn.config.get("registered")
-            where += (
-                f"  (sha256 {registered['sha256'][:12]}...)"
-                if registered
-                else "  (no file hash: run `recon connections refresh`)"
-            )
-        typer.echo(f"{conn.id}  [{conn.type.value}]  {where}")
+        registered = conn.config.get("registered") or {}
+        if registered.get("sha256"):
+            where += f"  (sha256 {registered['sha256'][:12]}...)"
+        problem = connection_problem(conn, key)
+        signed = (
+            f"NOT SIGNED: {problem}" if problem else f"signed by {conn.config['signature']['by']}"
+        )
+        typer.echo(f"{conn.id}  [{conn.type.value}]  {where}  [{signed}]")
+
+
+def _unlock_key(action: str) -> Signer | None:
+    trusted = load_trusted_key()
+    if trusted is None:
+        _fail("No confirmer key on this machine. Create one first with `recon keys init`.")
+        return None
+    passphrase = typer.prompt(f"Passphrase for {trusted.owner}'s key, to {action}", hide_input=True)
+    try:
+        return load_signer(passphrase)
+    except SigningError as error:
+        _fail(f"{error}; nothing was changed.")
+        return None
+
+
+def _store_signed(ctx: typer.Context, conn: Connection, signer: Signer, replace: bool) -> bool:
+    try:
+        _workspace(ctx).connections.add(sign_connection(conn, signer), replace=replace)
+    except ConnectionStoreError as error:
+        _fail(str(error))
+        return False
+    return True
+
+
+def _registered_file(conn: Connection) -> Path | None:
+    """The file a connection's registration hashes, if any."""
+    if conn.type == ConnectionType.FILE:
+        return Path(conn.config["path"])
+    return None
 
 
 @connections_app.command("remove")

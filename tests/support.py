@@ -61,7 +61,7 @@ CLEAN_PLAN = {
 
 
 def registered_file(conn_id: str, path: Path):
-    """A file connection as `recon connections add-file` records it, hash and all."""
+    """A file connection as `recon connections add-file` records it: hashed and signed."""
     from recon_engine.connections import file_registration
     from recon_engine.models import Connection, ConnectionType
 
@@ -70,11 +70,20 @@ def registered_file(conn_id: str, path: Path):
         "registered_by": "test",
         "registered_at": "2026-11-01T00:00:00+00:00",
     }
-    return Connection(
-        id=conn_id,
-        type=ConnectionType.FILE,
-        config={"path": str(path), "registered": registered},
+    return signed(
+        Connection(
+            id=conn_id,
+            type=ConnectionType.FILE,
+            config={"path": str(path), "registered": registered},
+        )
     )
+
+
+def signed(connection):
+    """A connection signed with the test confirmer key, as a person registering it would."""
+    from recon_engine.connections import sign_connection
+
+    return sign_connection(connection, signer())
 
 
 def fixture_extracts(kind: str = "clean"):

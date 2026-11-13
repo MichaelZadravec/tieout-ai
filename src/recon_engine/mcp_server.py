@@ -85,8 +85,9 @@ def build_server(workspace: Workspace | None = None) -> MCPServer:
     tool = _tool(server)
 
     @tool
-    def list_connections() -> list[dict[str, str]]:
-        """List the data sources configured on this machine (IDs and types only)."""
+    def list_connections() -> list[dict[str, Any]]:
+        """List the data sources configured on this machine: IDs, types, and whether a
+        person signed each one. Unsigned connections cannot be read."""
         return service.list_connections()
 
     @tool

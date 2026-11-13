@@ -29,14 +29,16 @@ def interactive(monkeypatch):
 
 
 @pytest.fixture
-def trial(tmp_path):
+def trial(tmp_path, interactive):
     """A workspace whose two sources are copies of the clean fixture, registered by a person."""
     home = tmp_path / ".recon"
     files = {}
     for conn_id, name in (("dashboard", "dashboard_oct2026.csv"), ("xero", "xero_oct_nov2026.csv")):
         files[conn_id] = tmp_path / name
         shutil.copy(FIXTURE_DATA / name, files[conn_id])
-        added = recon(home, "connections", "add-file", conn_id, str(files[conn_id]))
+        added = recon(
+            home, "connections", "add-file", conn_id, str(files[conn_id]), input=f"{PASSPHRASE}\n"
+        )
         assert added.exit_code == 0, added.output
     return home, files
 
@@ -107,7 +109,7 @@ def test_refresh_re_registers_and_the_certificate_can_reconcile_again(trial, int
         fh.write("\n")
     assert reconcile(home)["status"] == "OPEN"
 
-    refreshed = recon(home, "connections", "refresh", "xero", "--by", "Jane CFO", input=f"{CODE}\n")
+    refreshed = recon(home, "connections", "refresh", "xero", input=f"{CODE}\n{PASSPHRASE}\n")
     registered = Workspace(home).connections.get("xero").config["registered"]
 
     assert refreshed.exit_code == 0, refreshed.output
@@ -117,8 +119,9 @@ def test_refresh_re_registers_and_the_certificate_can_reconcile_again(trial, int
     assert reconcile(home)["status"] == "RECONCILED"
 
 
-def test_refresh_refuses_non_interactive_input(trial):
+def test_refresh_refuses_non_interactive_input(trial, monkeypatch):
     home, _ = trial
+    monkeypatch.setattr(cli, "_stdin_is_tty", lambda: False)
     result = recon(home, "connections", "refresh", "xero", input=f"{CODE}\n")
 
     assert result.exit_code == 1

@@ -1,7 +1,7 @@
 """B2: SQL that truncates is refused; every filter becomes an assumption a person confirms."""
 
 import pytest
-from support import INVOICES, signer
+from support import INVOICES, signed, signer
 
 from recon_engine.connectors.base import UnsafeQueryError
 from recon_engine.connectors.sql import SQLConnector, describe_filters, validate_select
@@ -125,7 +125,7 @@ def test_the_extract_and_run_query_report_the_filters(tmp_path, ledger):
     assert [f.sql for f in session.context.a.extract.query_filters] == ["status <> 'PAID'"]
 
     workspace = Workspace(tmp_path / "w")
-    workspace.connections.add(ledger)
+    workspace.connections.add(signed(ledger))
     summary = ReconService(workspace).run_query("ledger", f"{ALL} WHERE status <> 'PAID'")
     assert summary["query_filters"] == [
         {"clause": "WHERE", "sql": "status <> 'PAID'", "plain": "status is not 'PAID'"}

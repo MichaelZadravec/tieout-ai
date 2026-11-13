@@ -8,6 +8,10 @@ sees a path, URL or password.
 The file on disk is the only source of truth: every call reads it afresh, so a
 connection added in a terminal is visible to a running MCP server at once.
 
+Every connection is signed by the person who registers it (`sign_connection`):
+the engine reads only through connections whose whole record verifies against
+the confirmer key, so an edit to `connections.json` cannot add or alter one.
+
 A file connection records the file's hash, size and modified time when a person
 registers it (`file_registration`). Every read re-hashes the file, so an edit
 made after registration, by anyone, is caught.
@@ -24,6 +28,7 @@ from typing import Any
 
 from recon_engine.hashing import hash_file
 from recon_engine.models import Connection, ConnectionType
+from recon_engine.signing import Signer, TrustedKey
 
 
 class ConnectionStoreError(Exception):
@@ -38,6 +43,29 @@ def file_registration(path: Path) -> dict[str, Any]:
         "size": stat.st_size,
         "modified": datetime.fromtimestamp(stat.st_mtime, UTC).isoformat(),
     }
+
+
+def _unsigned(connection: Connection) -> dict[str, Any]:
+    config = {k: v for k, v in connection.config.items() if k != "signature"}
+    return {"id": connection.id, "type": connection.type.value, "config": config}
+
+
+def sign_connection(
+    connection: Connection, signer: Signer, at: datetime | None = None
+) -> Connection:
+    """The connection, signed by the person registering it: its ID, type and whole config."""
+    signature = signer.sign_record("connection", _unsigned(connection), at)
+    config = {**_unsigned(connection)["config"], "signature": signature}
+    return connection.model_copy(update={"config": config})
+
+
+def connection_problem(connection: Connection, key: TrustedKey | None) -> str | None:
+    """Why the engine must not read through this connection, or None if it may."""
+    if key is None:
+        return "cannot be checked: there is no confirmer key on this machine"
+    return key.record_problem(
+        "connection", _unsigned(connection), connection.config.get("signature")
+    )
 
 
 class ConnectionStore:

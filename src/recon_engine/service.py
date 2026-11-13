@@ -17,7 +17,7 @@ from typing import Any
 
 from recon_engine.certify import confirmation_status
 from recon_engine.checks import list_checks as registered_checks
-from recon_engine.connections import ConnectionStoreError
+from recon_engine.connections import ConnectionStoreError, connection_problem
 from recon_engine.connectors import connector_for
 from recon_engine.hashing import canonical_value, to_decimal
 from recon_engine.models import Assumption, Certificate, Extract, ExtractData, MatchSpec, Period
@@ -122,14 +122,24 @@ class ReconService:
 
     # --- sources -----------------------------------------------------------------
 
-    def list_connections(self) -> list[dict[str, str]]:
-        return [{"id": c.id, "type": c.type.value} for c in self.workspace.connections.all()]
+    def list_connections(self) -> list[dict[str, Any]]:
+        key = load_trusted_key()
+        return [
+            {"id": c.id, "type": c.type.value, "signed": connection_problem(c, key) is None}
+            for c in self.workspace.connections.all()
+        ]
 
     def run_query(self, connection_id: str, query: str | None = None) -> dict[str, Any]:
         try:
             connection = self.workspace.connections.get(connection_id)
         except ConnectionStoreError as error:
             raise ServiceError(str(error)) from None
+        problem = connection_problem(connection, load_trusted_key())
+        if problem:
+            raise ServiceError(
+                f"Connection '{connection_id}' {problem}. The engine reads only through "
+                "connections a person registered and signed; only a person can re-register it."
+            )
         data = connector_for(connection).fetch(query)
         self.extracts[data.extract.id] = data
         return _extract_summary(data.extract)

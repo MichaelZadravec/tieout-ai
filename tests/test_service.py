@@ -5,7 +5,7 @@ from decimal import Decimal
 from pathlib import Path
 
 import pytest
-from support import CLEAN_PLAN, FIXTURE_MATCH_ARGS, fixture_workspace
+from support import CLEAN_PLAN, FIXTURE_MATCH_ARGS, fixture_workspace, signed
 
 from recon_engine.connectors import UnsafeQueryError
 from recon_engine.models import Connection, ConnectionType
@@ -30,9 +30,9 @@ def test_list_connections_shows_ids_and_types_only(service):
     listed = service.list_connections()
 
     assert listed == [
-        {"id": "dashboard", "type": "file"},
-        {"id": "erp", "type": "sql"},
-        {"id": "xero", "type": "file"},
+        {"id": "dashboard", "type": "file", "signed": True},
+        {"id": "erp", "type": "sql", "signed": False},
+        {"id": "xero", "type": "file", "signed": True},
     ]
     assert "s3cret" not in json.dumps(listed)
 
@@ -57,7 +57,7 @@ def test_sql_queries_must_be_select_only(service, tmp_path):
     with closing(sqlite3.connect(db)) as conn, conn:
         conn.execute("CREATE TABLE t (a INT)")
     service.workspace.connections.add(
-        Connection(id="ledger", type=ConnectionType.SQL, config={"url": f"sqlite:///{db}"})
+        signed(Connection(id="ledger", type=ConnectionType.SQL, config={"url": f"sqlite:///{db}"}))
     )
 
     with pytest.raises(UnsafeQueryError, match="Only SELECT"):

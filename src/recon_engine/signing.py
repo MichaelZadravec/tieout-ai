@@ -84,6 +84,12 @@ def _payload(assumption_id: str, digest: str, confirmed_by: str, confirmed_at: s
     )
 
 
+def _record_payload(kind: str, record: Any, signed_by: str, signed_at: str) -> bytes:
+    return canonical_json(
+        {"kind": kind, "record": record, "signed_by": signed_by, "signed_at": signed_at}
+    )
+
+
 @dataclass(frozen=True)
 class TrustedKey:
     """The public half: what certify checks confirmations against."""
@@ -118,6 +124,24 @@ class TrustedKey:
             return "the signature does not match"
         return None
 
+    def record_problem(
+        self, kind: str, record: Any, signature: dict[str, Any] | None
+    ) -> str | None:
+        """Why a signed record (e.g. a connection) cannot be trusted, or None if it can."""
+        if not signature:
+            return "is not signed"
+        if signature.get("fingerprint") != self.fingerprint:
+            return (
+                f"is signed with key {signature.get('fingerprint')}, not this machine's "
+                f"confirmer key {self.fingerprint}"
+            )
+        payload = _record_payload(kind, record, signature.get("by", ""), signature.get("at", ""))
+        try:
+            self.public_key.verify(base64.b64decode(signature.get("value", "")), payload)
+        except (InvalidSignature, ValueError):
+            return "was changed after a person signed it"
+        return None
+
 
 @dataclass(frozen=True)
 class Signer:
@@ -137,6 +161,17 @@ class Signer:
     @property
     def trusted(self) -> TrustedKey:
         return TrustedKey(self.private_key.public_key(), self.owner)
+
+    def sign_record(self, kind: str, record: Any, at: datetime | None = None) -> dict[str, str]:
+        """A signature over any JSON record, by this key's owner."""
+        when = (at or datetime.now(UTC)).astimezone(UTC).isoformat()
+        value = self.private_key.sign(_record_payload(kind, record, self.owner, when))
+        return {
+            "by": self.owner,
+            "at": when,
+            "fingerprint": self.trusted.fingerprint,
+            "value": base64.b64encode(value).decode("ascii"),
+        }
 
     def sign(self, assumption: Assumption, at: datetime | None = None) -> Assumption:
         """The assumption, confirmed and signed by this key's owner."""
