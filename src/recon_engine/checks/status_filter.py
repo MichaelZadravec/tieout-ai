@@ -1,12 +1,14 @@
 """Status filter: one side includes rows of a status (e.g. VOIDED) that the other side excludes.
 
 Guardrail: a row is claimed only if its own status value in the source extract
-is exactly one of the named statuses. Naming several spellings of one status
-(VOIDED, Voided) loosens that, so it is logged as an elevated assumption.
+is exactly one of the named statuses. Naming several spellings of one status,
+or a status that rows which matched also have (so it is no exclusion at all),
+loosens that, so it is logged as an elevated assumption.
 """
 
 from __future__ import annotations
 
+from collections import Counter
 from collections.abc import Iterable
 
 from pydantic import Field
@@ -36,7 +38,7 @@ class StatusFilterParams(CheckParams):
 @register
 class StatusFilterCheck(Check):
     name = "status_filter"
-    version = "1.0.0"
+    version = "1.1.0"
     description = (
         "Rows present on one side only whose status on that side is one the other side filters "
         "out (for example voided or draft invoices)."
@@ -68,6 +70,18 @@ class StatusFilterCheck(Check):
         variants = [
             ", ".join(repr(s) for s in group) for group in spellings.values() if len(group) > 1
         ]
+        reasons = [f"counts {group} as one status" for group in variants]
+        wanted = set(params.statuses)
+        on_matched = Counter(
+            status
+            for row_id in ctx.matched_row_ids(params.side)
+            if (status := canonical_value(ctx.value(row_id, params.status_column))) in wanted
+        )
+        for status, count in on_matched.items():
+            reasons.append(
+                f"{status!r} is also the status of {count} matched records, so it does not "
+                f"mark rows that {excluding} leaves out"
+            )
         return [
             Proposal(
                 "status_filter.statuses",
@@ -78,11 +92,6 @@ class StatusFilterCheck(Check):
                 },
                 f"{including} includes them with '{params.status_column}' of {statuses}, and "
                 f"{excluding} excludes them.",
-                loosens=(
-                    "loosens the default: counts "
-                    + "; ".join(f"{group} as one status" for group in variants)
-                    if variants
-                    else None
-                ),
+                loosens="loosens the default: " + "; ".join(reasons) if reasons else None,
             )
         ]

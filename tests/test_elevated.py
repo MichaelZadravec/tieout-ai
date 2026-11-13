@@ -201,3 +201,38 @@ def test_elevation_does_not_change_the_status_rules():
     cert = certify(ctx, run_checks(ctx, plan_for("clean", manifest)))
 
     assert cert.status.value == "PROVISIONAL"
+
+
+def test_a_status_also_found_on_matched_rows_is_elevated():
+    """Red-team attack 8: 'PAID' is the status of ordinary invoices, not an exclusion."""
+    _, ctx = fixture_context("messy")
+    params = {"side": "a", "status_column": "status", "statuses": ["PAID"]}
+    bucket = get_check("status_filter").run(ctx, params)
+    [assumption] = ctx.assumptions.get_many(bucket.assumption_ids)
+
+    assert bucket.item_ids
+    assert assumption.elevated is True
+    assert "'PAID' is also the status of" in assumption.elevated_reason
+    assert "matched records" in assumption.elevated_reason
+    assert "xero leaves out" in assumption.elevated_reason
+
+
+def test_a_status_only_on_unmatched_rows_is_not_elevated_for_that():
+    _, ctx = fixture_context("clean")
+    params = {"side": "a", "status_column": "status", "statuses": ["VOIDED"]}
+    [assumption] = assumptions_of(ctx, get_check("status_filter").run(ctx, params)).values()
+
+    assert assumption.elevated is False
+
+
+def test_variants_and_matched_statuses_are_both_reported():
+    _, ctx = fixture_context("messy")
+    params = {"side": "a", "status_column": "status", "statuses": ["VOIDED", "Voided", "PAID"]}
+    [assumption] = assumptions_of(ctx, get_check("status_filter").run(ctx, params)).values()
+
+    assert "counts 'VOIDED', 'Voided' as one status" in assumption.elevated_reason
+    assert "'PAID' is also the status of" in assumption.elevated_reason
+
+
+def test_status_filter_version_is_bumped():
+    assert get_check("status_filter").version == "1.1.0"

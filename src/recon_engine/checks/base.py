@@ -35,6 +35,7 @@ from recon_engine.models import (
     MatchResult,
     MatchSpec,
     key_label,
+    row_id,
     source_names,
 )
 
@@ -215,6 +216,18 @@ class CheckContext:
 
     def excluded(self, side: Side) -> list[str]:
         return self.result.excluded_a if side == "a" else self.result.excluded_b
+
+    def matched_row_ids(self, side: Side) -> list[str]:
+        """Rows on `side` that matched the other side exactly: in no discrepancy item,
+        not outside the period, not unusable."""
+        data = self.data(side)
+        elsewhere = {row for item in self.items for row in item.row_ids}
+        elsewhere.update(self.excluded(side))
+        return [
+            rid
+            for n in range(len(data.frame))
+            if (rid := row_id(data.extract.id, n)) not in elsewhere
+        ]
 
     def require_column(self, side: Side, column: str) -> None:
         columns = self.data(side).extract.columns
