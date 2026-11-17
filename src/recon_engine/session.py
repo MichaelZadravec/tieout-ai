@@ -14,7 +14,14 @@ from pathlib import Path
 from typing import Any
 
 from recon_engine.assumptions import AssumptionStore
-from recon_engine.certify import certificate_problems, certify, verify_certificate_document
+from recon_engine.certify import (
+    SignOff,
+    certificate_problems,
+    certify,
+    check_sign_off,
+    sign_off_record,
+    verify_certificate_document,
+)
 from recon_engine.checks import CheckContext, ProposedBy, get_check
 from recon_engine.checks.base import Side
 from recon_engine.connections import ConnectionStore
@@ -27,7 +34,7 @@ from recon_engine.models import (
     MatchSpec,
     QueryFilter,
 )
-from recon_engine.signing import load_trusted_key
+from recon_engine.signing import Signer, load_trusted_key
 
 
 class CertificateError(Exception):
@@ -69,6 +76,24 @@ class Workspace:
                 f"Certificate '{cert_id}' is not self-consistent: {problems[0]}{more}"
             )
         return cert
+
+    def sign_off_path(self, cert_id: str) -> Path:
+        # Kept apart from the certificate: adding it would change the hash it signs.
+        return self.certificate_dir / "signoffs" / f"{cert_id}.json"
+
+    def save_sign_off(self, cert: Certificate, signer: Signer) -> Path:
+        """Record a person's sign-off. Human-only: the CLI calls this, never the MCP server."""
+        record = sign_off_record(cert)
+        path = self.sign_off_path(cert.id)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        payload = {**record, "signature": signer.sign_record("certificate", record)}
+        path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8", newline="\n")
+        return path
+
+    def sign_off(self, cert: Certificate) -> SignOff:
+        path = self.sign_off_path(cert.id)
+        stored = json.loads(path.read_text(encoding="utf-8")) if path.is_file() else None
+        return check_sign_off(cert, stored, load_trusted_key())
 
     def list_certificates(self) -> list[str]:
         if not self.certificate_dir.is_dir():

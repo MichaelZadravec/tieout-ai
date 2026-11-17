@@ -31,6 +31,16 @@
       "PowerShell(*recon connections*)",
       "PowerShell(*recon.exe connections*)",
       "PowerShell(*recon_engine.cli connections*)",
+      "Bash(recon cert sign*)",
+      "Bash(uv run recon cert sign*)",
+      "Bash(*recon cert sign*)",
+      "Bash(*recon.exe cert sign*)",
+      "Bash(*recon_engine.cli cert sign*)",
+      "PowerShell(recon cert sign*)",
+      "PowerShell(uv run recon cert sign*)",
+      "PowerShell(*recon cert sign*)",
+      "PowerShell(*recon.exe cert sign*)",
+      "PowerShell(*recon_engine.cli cert sign*)",
       "Edit(/.recon/**)",
       "Edit(.recon/**)"
     ]

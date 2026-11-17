@@ -15,7 +15,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
 
-from recon_engine.certify import confirmation_status
+from recon_engine.certify import SignOff, confirmation_status
 from recon_engine.checks import list_checks as registered_checks
 from recon_engine.connections import ConnectionStoreError, connection_problem
 from recon_engine.connectors import connector_for
@@ -351,9 +351,10 @@ class ReconService:
         session = self._session(reconciliation_id)
         cert = session.certify(supersedes=supersedes)
         html_path = self.workspace.certificate_dir / f"{cert.id}.html"
-        html_path.write_text(render_html(cert), encoding="utf-8")
+        sign_off = self.workspace.sign_off(cert)
+        html_path.write_text(render_html(cert, sign_off), encoding="utf-8")
         return {
-            **self._certificate_summary(cert),
+            **self._certificate_summary(cert, sign_off),
             "json_path": str(self.workspace.certificate_dir / f"{cert.id}.json"),
             "html_path": str(html_path),
         }
@@ -363,7 +364,7 @@ class ReconService:
         cert = self.workspace.load_certificate(certificate_id)
         warning = confirmation_status(cert, load_trusted_key())
         return {
-            **self._certificate_summary(cert),
+            **self._certificate_summary(cert, self.workspace.sign_off(cert)),
             "hash_verified": True,
             "self_consistent": True,
             "confirmations_verified": warning is None,
@@ -376,11 +377,15 @@ class ReconService:
         key = load_trusted_key()
         return assumption.confirmed and key is not None and key.problem(assumption) is None
 
-    def _certificate_summary(self, cert: Certificate) -> dict[str, Any]:
+    def _certificate_summary(self, cert: Certificate, sign_off: SignOff) -> dict[str, Any]:
         unconfirmed = [a for a in cert.assumptions if a.id in cert.unconfirmed_assumptions]
+        final = cert.status.value == "RECONCILED" and sign_off.signed
         next_step = {
-            "RECONCILED": "Nothing further: every item is explained and every "
-            "assumption confirmed.",
+            "RECONCILED": f"Final: signed off by {sign_off.by}."
+            if final
+            else "Every item is explained and every assumption confirmed, but the certificate "
+            f"is not final until a person signs it off with `recon cert sign {cert.id}` in a "
+            "terminal. Say so; you cannot sign it off.",
             "PROVISIONAL": "The gap is explained but rests on unconfirmed assumptions. A person "
             "must confirm each with `recon confirm <id>` in a terminal; then re-certify.",
             "OPEN": "Some differences are unexplained. Inspect them with list_open_items, try "
@@ -430,6 +435,17 @@ class ReconService:
                 "unverified_confirmations": cert.unverified_confirmations,
                 "source_warnings": cert.source_warnings,
                 "certificate_hash": cert.certificate_hash,
+                "signed_off": sign_off.signed,
+                "sign_off_status": sign_off.status,
+                "sign_off": {
+                    "by": sign_off.by,
+                    "at": sign_off.at,
+                    "fingerprint": sign_off.fingerprint,
+                }
+                if sign_off.signed
+                else None,
+                "sign_off_problem": sign_off.problem,
+                "final": final,
                 "next_step": next_step,
             }
         )

@@ -40,7 +40,7 @@ def test_init_writes_the_workspace_mcp_config_and_settings(tmp_path):
 
 
 def test_denied_commands_cover_every_human_only_action():
-    assert set(DENIED_COMMANDS) == {"confirm", "keys", "connections"}
+    assert set(DENIED_COMMANDS) == {"confirm", "keys", "connections", "cert sign"}
 
 
 def test_running_init_twice_changes_nothing(tmp_path):

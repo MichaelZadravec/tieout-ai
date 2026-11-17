@@ -42,6 +42,8 @@ Rules:
 - Use propose_assumption for choices that affect the result (scope, filters).
 - You cannot confirm assumptions. A PROVISIONAL certificate needs a person to run
   `recon confirm <id>` in a terminal. Say so; do not try to work around it.
+- A RECONCILED certificate is final only once a person signs it off with
+  `recon cert sign <id>`. Until then report it as reconciled but not signed off.
 - Report unexplained differences honestly; do not force a residual to zero.
 - SQL must return every row: LIMIT, TOP, OFFSET, FETCH and SAMPLE are refused.
   Every WHERE, HAVING, JOIN, DISTINCT or UNION becomes an assumption a person

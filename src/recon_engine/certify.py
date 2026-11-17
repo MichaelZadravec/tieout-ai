@@ -13,9 +13,10 @@ from the match's discrepancy items and refuses to issue a certificate unless:
 from __future__ import annotations
 
 from collections.abc import Sequence
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Any
+from typing import Any, Literal
 
 from recon_engine import __version__
 from recon_engine.checks import CheckContext
@@ -145,6 +146,57 @@ def certificate_problems(cert: Certificate, confirmer_key: TrustedKey | None) ->
     if cert.status != expected:
         problems.append(f"status {cert.status} does not follow from its content (it is {expected})")
     return problems
+
+
+SignOffState = Literal["signed off", "not signed off", "sign-off does not verify"]
+
+
+@dataclass(frozen=True)
+class SignOff:
+    """Whether a person signed a certificate off, and who, when and with which key."""
+
+    status: SignOffState
+    by: str | None = None
+    at: str | None = None
+    fingerprint: str | None = None
+    problem: str | None = None
+
+    @property
+    def signed(self) -> bool:
+        return self.status == "signed off"
+
+
+def sign_off_record(cert: Certificate) -> dict[str, str]:
+    """What a sign-off vouches for: this exact certificate, by hash, in this status."""
+    return {
+        "certificate_id": cert.id,
+        "certificate_hash": cert.certificate_hash,
+        "status": cert.status.value,
+    }
+
+
+def check_sign_off(
+    cert: Certificate, stored: dict[str, Any] | None, key: TrustedKey | None
+) -> SignOff:
+    """Verify a stored sign-off against the certificate and this machine's confirmer key."""
+    if stored is None:
+        return SignOff("not signed off")
+    signature = stored.get("signature") or {}
+    record = {k: stored.get(k) for k in ("certificate_id", "certificate_hash", "status")}
+    if record != sign_off_record(cert):
+        problem = "the sign-off was made for a different certificate"
+    elif key is None:
+        problem = "there is no confirmer key on this machine to check the sign-off"
+    else:
+        found = key.record_problem("certificate", record, signature)
+        problem = f"the sign-off {found}" if found else None
+    return SignOff(
+        "sign-off does not verify" if problem else "signed off",
+        by=signature.get("by"),
+        at=signature.get("at"),
+        fingerprint=signature.get("fingerprint"),
+        problem=problem,
+    )
 
 
 def confirmation_status(cert: Certificate, confirmer_key: TrustedKey | None = None) -> str | None:

@@ -305,6 +305,51 @@ def list_certificates(ctx: typer.Context) -> None:
     typer.echo("\n".join(ids) if ids else "No certificates yet.")
 
 
+@cert_app.command("sign")
+def sign_certificate(
+    ctx: typer.Context,
+    cert_id: Annotated[str, typer.Argument(help="Certificate ID.")],
+) -> None:
+    """Sign a RECONCILED certificate off, making it final. Interactive only."""
+    _require_terminal("recon cert sign")
+    workspace = _workspace(ctx)
+    try:
+        cert = workspace.load_certificate(cert_id)
+    except CertificateError as error:
+        _fail(str(error))
+        return
+    if cert.status != CertificateStatus.RECONCILED:
+        _fail(f"Only a RECONCILED certificate can be signed off; this one is {cert.status.value}")
+        return
+    trusted = load_trusted_key()
+    warning = confirmation_status(cert, trusted)
+    if warning:
+        _fail(f"Its confirmations cannot be verified on this machine: {warning}")
+        return
+    if workspace.sign_off(cert).signed:
+        typer.echo(f"{cert.id} is already signed off.")
+        return
+
+    name_a, name_b = source_names(cert.extracts[0].connection_id, cert.extracts[1].connection_id)
+    typer.echo(f"{cert.id}  RECONCILED")
+    typer.echo(f"  {name_a} vs {name_b}, gap {money(cert.match.gap)}, fully explained")
+    typer.echo(f"  {len(cert.assumptions)} assumptions, all confirmed with key")
+    typer.echo(f"  {cert.confirmer_key_fingerprint}")
+    typer.echo("Signing off makes this certificate final.")
+    if not _person_retypes_code("sign it off"):
+        _fail("The code did not match; nothing was signed.")
+        return
+    signer = _unlock_key("sign it off")
+    if signer is None:
+        return
+    workspace.save_sign_off(cert, signer)
+    sign_off = workspace.sign_off(cert)
+    html = workspace.certificate_dir / f"{cert.id}.html"
+    html.write_text(render_html(cert, sign_off), encoding="utf-8")
+    typer.echo(f"Signed off {cert.id} by {sign_off.by} (key {sign_off.fingerprint}).")
+    typer.echo(f"  Updated {html}")
+
+
 @cert_app.command("show")
 def show_certificate(
     ctx: typer.Context,
@@ -325,9 +370,17 @@ def show_certificate(
         return
 
     out = typer.echo
+    sign_off = workspace.sign_off(cert)
     out(f"{cert.id}  {cert.status.value}")
     out(f"Hash verified: {cert.certificate_hash}")
     out(f"Issued {cert.created_at.isoformat()} by engine {cert.engine_version}")
+    if cert.status == CertificateStatus.RECONCILED:
+        if sign_off.signed:
+            out(f"SIGNED OFF by {sign_off.by} at {sign_off.at} (key {sign_off.fingerprint}): final")
+        elif sign_off.problem:
+            out(f"NOT SIGNED OFF: {sign_off.problem}")
+        else:
+            out(f"NOT SIGNED OFF: not final until a person runs `recon cert sign {cert.id}`")
     out("")
     name_a, name_b = source_names(cert.extracts[0].connection_id, cert.extracts[1].connection_id)
 
@@ -393,7 +446,7 @@ def show_certificate(
         out("assumptions. It becomes RECONCILED only when re-issued after a person confirms them.")
 
     if html is not None:
-        html.write_text(render_html(cert), encoding="utf-8")
+        html.write_text(render_html(cert, sign_off), encoding="utf-8")
         out(f"Wrote HTML to {html}")
     if json_out is not None:
         json_out.write_text(cert.model_dump_json(indent=2) + "\n", encoding="utf-8")

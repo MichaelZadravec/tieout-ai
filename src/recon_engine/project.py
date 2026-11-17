@@ -22,9 +22,10 @@ SETTINGS_FILE = Path(".claude") / "settings.json"
 MCP_SERVER = {"command": "recon-mcp", "args": ["--home", WORKSPACE]}
 ALLOW = ["mcp__recon__*"]
 
-# Commands only a person may run: confirming, managing keys, and registering or
-# refreshing sources. Denied in every form an agent's shell might spell them.
-DENIED_COMMANDS = ("confirm", "keys", "connections")
+# Commands only a person may run: confirming, managing keys, registering or
+# refreshing sources, and signing certificates off. Denied in every form an
+# agent's shell might spell them.
+DENIED_COMMANDS = ("confirm", "keys", "connections", "cert sign")
 _SPELLINGS = (
     "recon {c}*",
     "uv run recon {c}*",

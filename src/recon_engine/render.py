@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 from html import escape
+from typing import TYPE_CHECKING
 
 from recon_engine.models import (
     Assumption,
@@ -17,6 +18,9 @@ from recon_engine.models import (
     key_label,
     source_names,
 )
+
+if TYPE_CHECKING:
+    from recon_engine.certify import SignOff
 
 MAX_RESIDUAL_ROWS = 200
 MINUS = chr(0x2212)  # a true minus sign, not a hyphen
@@ -152,7 +156,30 @@ def _source(name: str, extract: Extract) -> str:
 </div>"""
 
 
-def render_html(cert: Certificate) -> str:
+def _sign_off_banner(cert: Certificate, sign_off: SignOff | None) -> str:
+    """Only a RECONCILED certificate can be final, and only once a person signs it off."""
+    if cert.status != CertificateStatus.RECONCILED:
+        return ""
+    if sign_off is not None and sign_off.signed:
+        return (
+            f'<div class="banner ok"><strong>Signed off by {_e(sign_off.by)}</strong> on '
+            f'{_e(sign_off.at)} with key <span class="hash">{_e(sign_off.fingerprint)}</span>. '
+            "This certificate is final.</div>"
+        )
+    if sign_off is not None and sign_off.problem:
+        return (
+            '<div class="banner bad"><strong>Sign-off does not verify.</strong> '
+            f"{_e(sign_off.problem)}. This certificate is not final.</div>"
+        )
+    return (
+        '<div class="banner warn"><strong>Not signed off.</strong> Every item is explained and '
+        "every assumption confirmed, but this certificate is not final until a person signs it "
+        f"off with <code>recon cert sign {_e(cert.id)}</code>.</div>"
+    )
+
+
+def render_html(cert: Certificate, sign_off: SignOff | None = None) -> str:
+    """The certificate as a page. Pass its sign-off (Workspace.sign_off) to show it."""
     spec = cert.match_spec
     period = (
         f"{spec.period.start.isoformat()} to {spec.period.end.isoformat()}"
@@ -279,6 +306,7 @@ def render_html(cert: Certificate) -> str:
 <main>
   <h1>Reconciliation certificate {status_badge}</h1>
   <div class="meta">{_e(cert.id)} · issued {_e(cert.created_at.isoformat())} · period {_e(period)}{supersedes}</div>
+  {_sign_off_banner(cert, sign_off)}
   {source_banner}
   {banner}
   {elevated}

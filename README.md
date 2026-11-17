@@ -196,6 +196,22 @@ after signing counts as unconfirmed, and the certificate says why. Certificates
 record the key's fingerprint and owner; `recon keys show` prints them.
 This project's `.claude/settings.json` also denies these commands to Claude Code.
 
+## Signing a certificate off
+
+A RECONCILED certificate is balanced and rests only on confirmed assumptions, but it
+is not final until a person signs it off:
+
+```bash
+uv run recon cert sign <certificate_id>
+```
+
+Like `recon confirm`, this runs only in an interactive terminal, asks you to retype a
+code and then for your passphrase, and signs the certificate's ID, hash and status
+with your key. The sign-off is stored beside the certificate (it cannot go inside it
+without changing the hash it signs). `recon cert show`, `get_certificate` and the HTML
+say whether a certificate is signed off; a hand-written, moved or foreign-key sign-off
+does not count.
+
 ## CLI
 
 Confirming an assumption is a human-only action and exists only here:
