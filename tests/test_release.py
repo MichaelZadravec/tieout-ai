@@ -23,7 +23,7 @@ def test_names_and_entry_points():
     assert PROJECT["name"] == "tieout-ai"
     assert scripts["tieout"] == scripts["tieout-ai"] == "tieout_ai.cli:app"
     assert scripts["tieout-mcp"] == "tieout_ai.mcp_server:main"
-    assert scripts["recon"] == "tieout_ai.cli:app"  # alias, for now
+    assert set(scripts) == {"tieout", "tieout-ai", "tieout-mcp"}  # no recon aliases
 
 
 def test_no_home_directory_paths_ship_in_the_repo():

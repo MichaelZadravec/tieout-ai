@@ -23,9 +23,6 @@ tieout = "tieout_ai.cli:app"
 # `uvx tieout-ai ...` runs the command named after the package.
 tieout-ai = "tieout_ai.cli:app"
 tieout-mcp = "tieout_ai.mcp_server:main"
-# Earlier names, kept as aliases for existing setups.
-recon = "tieout_ai.cli:app"
-recon-mcp = "tieout_ai.mcp_server:main"
 
 [dependency-groups]
 dev = [

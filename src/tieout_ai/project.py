@@ -2,7 +2,7 @@
 
 It creates the workspace (`.tieout/`), registers the MCP server for Claude Code
 (`.mcp.json`) and writes Claude Code permissions (`.claude/settings.json`) that
-allow the recon tools but deny every human-only command (confirm, keys,
+allow the tieout tools but deny every human-only command (confirm, keys,
 connections) and any edit inside the workspace.
 
 It is idempotent and merges rather than overwrites: other MCP servers and other
@@ -27,7 +27,8 @@ ALLOW = [f"mcp__{MCP_NAME}__*"]
 # refreshing sources, and signing certificates off. Denied in every form an
 # agent's shell might spell them.
 DENIED_COMMANDS = ("confirm", "keys", "connections", "cert sign")
-_COMMANDS = ("tieout", "tieout-ai", "recon")  # recon: the earlier name, still installed
+# `recon` was the command before the rename; an older install may still provide it.
+_COMMANDS = ("tieout", "tieout-ai", "recon")
 _SPELLINGS = (
     *(f"{name} {{c}}*" for name in _COMMANDS),
     *(f"uv run {name} {{c}}*" for name in _COMMANDS),
