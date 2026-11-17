@@ -51,3 +51,12 @@ def test_no_home_directory_paths_ship_in_the_repo():
             ):
                 offenders.append(str(path.relative_to(ROOT)))
     assert offenders == []
+
+
+def test_ci_covers_three_operating_systems_and_both_pythons():
+    ci = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+
+    assert "os: [ubuntu-latest, windows-latest, macos-latest]" in ci
+    assert 'python: ["3.11", "3.14"]' in ci
+    assert "uv run pytest" in ci
+    assert "uv sync --locked" in ci
