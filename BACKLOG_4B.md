@@ -1,7 +1,7 @@
 # Phase 4b — Hardening from live testing
 
 > Brief for Claude Code. Save in the repo root next to CLAUDE.md.
-> These items come from the first live tests in a customer-style folder (C:\dev\recon_trial).
+> These items come from the first live tests in a customer-style trial folder.
 > The goal: the engine, not the AI's good behaviour, must stop a bad certificate.
 
 ## Working rules
@@ -10,7 +10,7 @@
 - Keep all existing tests passing on Python 3.11 and 3.14. Lint clean.
 - Update fixtures, manifests and the README as behaviour changes.
 - **Stop for review after Part A, and again after Part B.**
-- At the end, reinstall the trial tool: `uv tool install --reinstall --force --python 3.14 C:\dev\tieout_ai`
+- At the end, reinstall the trial tool: `uv tool install --reinstall --force --python 3.14 <path to this repo>`
 
 ---
 
@@ -96,7 +96,7 @@ Elevated assumptions are shown separately at the top of the HTML certificate and
 - checks whether `recon` / `tieout-mcp` are on PATH; if not, prints the exact fix (`uv tool update-shell`, then open a new terminal)
 - runs `tieout keys init` if no key exists yet
 - prints a short "next steps" list (add connections, open Claude Code here, confirm in your own terminal)
-**Done when:** running `tieout init` in an empty folder produces a working trial folder equivalent to C:\dev\recon_trial, and running it twice changes nothing.
+**Done when:** running `tieout init` in an empty folder produces a working trial folder equivalent to the hand-built trial folder, and running it twice changes nothing.
 
 **→ Stop for review after Part B.**
 
