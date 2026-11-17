@@ -95,7 +95,7 @@ def test_cli_init_reports_path_problems_with_the_fix(tmp_path, monkeypatch):
     result = recon_init(tmp_path)
 
     assert result.exit_code == 0, result.output
-    assert "not on your PATH" in result.output
+    assert "tieout and tieout-mcp are not on your PATH" in result.output
     assert "uv tool update-shell" in result.output
     assert "open a new terminal" in result.output
 

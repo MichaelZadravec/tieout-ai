@@ -171,7 +171,7 @@ def init(
     for path, status in init_folder(folder):
         typer.echo(f"  {path:<24} {status}")
 
-    missing = [name for name in ("recon", "tieout-mcp") if shutil.which(name) is None]
+    missing = [name for name in ("tieout", "tieout-mcp") if shutil.which(name) is None]
     if missing:
         typer.echo("")
         typer.echo(
