@@ -26,6 +26,29 @@ uv run ruff format --check .
 The supported floor is Python 3.11; CI also runs 3.14, on Windows, macOS and
 Linux. `uv run tieout demo` runs both fixture pairs end to end.
 
+**Windows path length.** Compiled dependencies (numpy, SQLAlchemy) can fail to load
+with "The filename or extension is too long" if the virtualenv sits under a deep
+path. Keep the checkout at a short path, or point `UV_PROJECT_ENVIRONMENT` at a
+short directory.
+
+### Project layout
+
+- `src/tieout_ai/connectors/`: file (CSV/Excel) and SQL sources; SQL is parsed
+  with sqlglot and must be a single read-only `SELECT` that returns every row
+- `match.py`: row-level matching and the gap
+- `checks/`: the discrepancy checks, one interface and a registry
+- `certify.py`: conservation checks, certificates and their verification
+- `assumptions.py`, `connections.py`, `session.py`: the on-disk workspace
+  (`.recon/`), read afresh on every call
+- `signing.py`: confirmer keys, signed confirmations, registrations and sign-offs
+- `service.py` and `mcp_server.py`: what the AI can call (and nothing it must not)
+- `cli.py`: the `tieout` command, including the human-only actions
+- `render.py`: the HTML certificate
+- `fixtures/`: the clean and messy "dashboard vs Xero" pairs; the committed files
+  and answer keys are in `fixtures/data/`. Regenerate them with
+  `uv run python fixtures/generate.py` and `uv run python fixtures/generate_messy.py`
+  (the tests check they are byte-identical).
+
 ## Ground rules
 
 - **No LLM calls**, anywhere. Everything must be deterministic and reproducible.

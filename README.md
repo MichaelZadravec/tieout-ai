@@ -1,250 +1,180 @@
-# tieout_ai
+# AI TieOut
 
-A deterministic Python engine that proves whether two business numbers agree,
-and if not, explains every dollar of the difference with evidence rows.
-AI agents call it through an MCP server; the engine itself contains no LLM.
+**Prove that two business numbers agree, or explain every dollar of the difference.**
 
-See [CLAUDE.md](CLAUDE.md) for the full build brief.
-See [SECURITY.md](SECURITY.md) for the threat model, what the engine catches and flags,
-and red-team results including what is still open.
+AI TieOut is a reconciliation engine for the age of AI analysts. Your AI assistant
+investigates; the engine proves; you confirm. At the end you get a certificate that
+shows exactly how one number ties out to the other, which a CFO or auditor can read.
 
-## Try it
+## The problem
+
+Every month-end asks the same question: *why doesn't the dashboard match the ledger?*
+
+The answer is usually mundane. Invoices dated by appointment on one side and by
+issue date on the other. Voided invoices one system still counts. GST included here
+and excluded there. A batch exported twice. Finding it takes hours of filtering
+spreadsheets, and the explanation ends up in a workbook nobody can audit.
+
+AI assistants are now good at the investigating part. They can read the data, spot
+patterns and form hypotheses in minutes. But an answer that *sounds* right is not
+an answer that *is* right. Left alone, an AI will happily round a residual away,
+filter out the awkward rows, or tell you the numbers reconcile when they don't. In
+finance, that difference matters.
+
+## AI proposes, code proves, people confirm
+
+AI TieOut splits the job so each part is done by whoever can be trusted with it.
+
+- **The AI proposes.** It explores the sources, writes queries, chooses how to match
+  them and suggests why they differ ("these 58 invoices are dated a month apart").
+  It works through an MCP server and passes only references and parameters, never
+  numbers it claims are results.
+- **Code proves.** The engine fetches the data itself, matches it row by row, tests
+  each hypothesis with a guarded check, and sums every amount. It claims only the
+  differences it can prove. Everything else stays *unexplained*, never rounded
+  away. Buckets plus residual always equal the gap, to the cent.
+- **People confirm.** Every judgement call (a filter, a tax rate, a date basis) is
+  recorded as an assumption, scoped to the records it covers. Anything that loosens
+  a default is flagged *elevated*. Only a person, in their own terminal and with
+  their own signing key, can confirm an assumption or sign a certificate off.
+
+There are no LLM calls in the engine. Everything is deterministic and reproducible.
+
+## Try it in 60 seconds
+
+You need [uv](https://docs.astral.sh/uv/getting-started/installation/). Then:
 
 ```bash
-tieout demo
+uvx tieout-ai demo
 ```
 
-Runs both fixture pairs end to end in a temporary folder and opens the two HTML
-certificates: the clean pair reconciles and is signed off; the messy pair stays
-honestly OPEN. The demo confirms and signs with a throwaway key it makes for the
-purpose, so your own key is never used (`--out DIR` keeps the output, `--no-open`
-skips the browser).
+This runs two "dashboard vs Xero" reconciliations end to end in a temporary folder
+and opens their certificates in your browser:
 
-## Development
+- **Clean**: a $29,072 gap, fully explained by timing, voided invoices, GST,
+  duplicates and credit notes. **RECONCILED** and signed off.
+- **Messy**: real-world dirt (case and whitespace variants, blank amounts,
+  near-duplicates, cent rounding). Most of the gap is explained; the rest
+  ($1,326.00 net) is honestly reported as **unexplained**, item by item.
 
-```bash
-uv sync
-uv run pytest
-uv run ruff check .
-uv run ruff format --check .
-```
+The demo confirms and signs with a throwaway key it makes for the purpose, so
+nothing touches your machine's real setup.
 
-The supported floor is Python 3.11. To run the suite on it as well:
+## How it works
 
-```bash
-uv run --python 3.11 pytest
-```
+1. **A person registers the sources**: CSV or Excel files, or SQL databases
+   (read-only, `SELECT` only). Each registration is hashed and signed with the
+   person's key, so the engine notices if a file changes or a source is swapped.
+2. **The AI investigates** through the MCP server: it profiles the sources, runs
+   queries, matches the two sides on keys, amounts and dates for a period, and
+   reads the differences that are left.
+3. **The AI tries hypotheses**, and the engine tests them with built-in checks.
+   Each check has hard guardrails and claims only what it can prove:
 
-**Windows path length.** Compiled dependencies (numpy, SQLAlchemy) fail to load
-with "The filename or extension is too long" if the virtualenv sits under a
-deep path. Keep the checkout at a short path such as `C:\dev\tieout_ai`,
-econ_engine`,
-or point `UV_PROJECT_ENVIRONMENT` at a short directory.
+   | Check | Explains |
+   |---|---|
+   | `timing` | The same transaction dated in different periods on each side |
+   | `status_filter` | Rows of a status (e.g. voided) one side leaves out |
+   | `tax_basis` | One side including tax (e.g. 10% GST) and the other not |
+   | `duplicates` | Rows one side repeats |
+   | `sign_credit` | Credit notes with opposite signs, or missing on one side |
+   | `rounding` | Differences of a cent or so, within a strict tolerance |
 
-## Layout
+4. **The engine issues a certificate**: every bucket of explained difference with
+   its rows and amounts, the unexplained residual, every assumption, and the hashes
+   of the exact data used. Its status is **OPEN** (something is unexplained),
+   **PROVISIONAL** (all explained, but resting on unconfirmed assumptions) or
+   **RECONCILED** (all explained, all confirmed).
+5. **A person confirms and signs off.** `tieout confirm` and `tieout cert sign` run
+   only in an interactive terminal and need the person's passphrase. A RECONCILED
+   certificate is final only once it is signed off.
 
-- `hashing.py`: canonical values and JSON, query and data hashes, column totals
-- `models.py`: pydantic models (Connection, Extract, MatchSpec, MatchResult, ...)
-- `connectors/`: `files.py` (CSV/XLSX) and `sql.py` (SQLAlchemy, SELECT-only via sqlglot)
-- `match.py`: row-level matching of two extracts and the gap
-- `checks/`: discrepancy checks (timing, status_filter, tax_basis, duplicates,
-  sign_credit, rounding) behind one interface and registry; the engine sums each
-  bucket and refuses overlapping claims
-- `fixtures/` (code in `tieout_ai.fixtures`): deterministic "dashboard vs Xero" pair with injected
-  issues; output and answer key live in `fixtures/data/`
-
-- `fixtures/generate_messy.py`: a messy pair (case/whitespace variants, blanks,
-  compound timing+GST, near-duplicates, 1-cent rounding) whose honest residual is
-  not zero; its manifest lists every item that must stay unexplained
-- `assumptions.py`: the assumption store; buckets and certificates refer to it by ID.
-  Like the connection store, it is read from disk on every call, so a confirmation
-  made in a terminal reaches a running MCP server at once
-- `certify.py`: conservation checks, certificate issue and hash verification
-- `render.py`: certificate to a printable HTML report
-- `session.py`: the on-disk workspace (`.recon/` or `$RECON_HOME`) and a reconciliation session
-
-Regenerate the fixtures with:
+### On your own data
 
 ```bash
-uv run python fixtures/generate.py
-```
-
-```bash
-uv run python fixtures/generate_messy.py
-```
-
-## Setting up a folder for a customer
-
-Install the engine as a tool, put it on PATH, then run `tieout init` in an empty
-folder:
-
-```bash
-uv tool install --python 3.14 C:\path\to\tieout_ai
-```
-
-```bash
-uv tool update-shell
+uv tool install tieout-ai
 ```
 
 ```bash
 tieout init
 ```
 
-`tieout init` creates the `.recon/` workspace, registers the MCP server in
-`.mcp.json` (`tieout-mcp --home .recon`), and writes `.claude/settings.json` that
-allows the recon tools but denies `tieout confirm`, `tieout keys` and
-`tieout connections` (in Bash and PowerShell) and any edit inside `.recon/`. It
-checks that `recon` and `tieout-mcp` are on PATH and says how to fix it if not,
-creates your confirmer key if there is none, and prints the next steps. It
-merges into existing files and is safe to run again: a second run changes
-nothing.
-
-## MCP server (for AI agents)
-
-The engine is driven by an AI through an MCP server; the engine itself makes no
-LLM calls. Tools take IDs and parameters only and return engine-computed numbers:
-
-`list_connections`, `profile_source`, `run_query`, `get_rows`, `match`,
-`list_open_items`, `list_checks`, `run_check`, `propose_assumption`, `certify`,
-`get_certificate`.
-
-There is deliberately no tool to confirm an assumption. A certificate that
-balances on unconfirmed assumptions is PROVISIONAL until a person confirms them.
-
-1. Add data sources (credentials stay in `.recon/connections.json`, never sent to the AI):
+`tieout init` sets up the current folder: the workspace, the MCP server for Claude
+Code, permission rules that keep the human-only commands away from the AI, and
+your signing key. Then register your sources:
 
 ```bash
-uv run tieout connections add-file dashboard fixtures/data/dashboard_oct2026.csv
+tieout connections add-file dashboard path/to/dashboard.csv
 ```
 
 ```bash
-uv run tieout connections add-sql ledger
+tieout connections add-sql ledger
 ```
 
-2. Claude Code picks up the server from `.mcp.json` in this folder (approve it when
-   prompted). Other clients can run it directly:
+Open Claude Code in that folder and ask it to reconcile, in plain English. Other
+MCP clients can run the server directly with `tieout-mcp --home .recon`. When the
+AI reports assumptions to confirm, review them and confirm the ones you agree with:
 
 ```bash
-uv run tieout-mcp
-```
-
-Built on the Python MCP SDK 2.x, where FastMCP is now called `MCPServer`.
-
-## Assumptions
-
-Every claim a check makes rests on assumptions, and each one is scoped to the
-records it covers: "For these 12 records (INV-10402 … INV-10413), xero amounts
-include 10% tax and dashboard amounts exclude it." The covered keys are part of
-the assumption's ID, so the same reasoning applied to other records is a new
-assumption that needs its own confirmation. A check that proves nothing assumes
-nothing.
-
-An assumption is **elevated** when its parameter loosens a check's default, and
-it carries a one-line reason. Elevated assumptions head the HTML certificate and
-`tieout assumptions list`:
-
-- duplicates with `compare_columns` narrower than every column (and it can never
-  leave out the match key, amount or date columns)
-- status_filter naming several spellings of one status (`VOIDED`, `Voided`)
-- timing where a claimed row's actual lag exceeds 7 days (the window itself may be
-  up to one period; the assumption reports the largest lag found)
-- rounding (any tolerance, default $0.01, at most $0.05 per record) and
-  tax_basis with a `rounding_tolerance` (at most $0.01)
-
-Everything a person reads calls each side by its connection name, not "side A/B".
-
-## File sources are hashed when registered
-
-`tieout connections add-file` records the file's SHA-256, size and modified time,
-and who registered it. Every read hashes the bytes it parses and compares. If the
-file has changed since (or was added before hashing existed), the extract carries
-a warning naming the file and no certificate built on it can be better than OPEN.
-After checking the file, a person re-registers it, interactively, with:
-
-```bash
-uv run tieout connections refresh <connection_id>
-```
-
-## Connections are signed by the person who registers them
-
-`tieout connections add-file`, `add-sql` and `refresh` run only in an interactive
-terminal and ask for your confirmer key's passphrase. Each signs the whole
-connection record (ID, type, path or URL, and the file's hash). The engine reads
-only through connections whose record verifies against this machine's confirmer
-key, so a connection added to `connections.json` by hand, or a registration
-rewritten there, is refused. `tieout connections list` and `list_connections`
-say which connections are signed.
-
-## SQL must not truncate, and its filters are assumptions
-
-A SQL extract must return every row it selects: `LIMIT`, `TOP`, `OFFSET`,
-`FETCH`, `SAMPLE` and `TABLESAMPLE` are refused. Every other way a query leaves
-rows out (each AND-ed part of a `WHERE` or `HAVING`, each `JOIN`, `DISTINCT`, a
-de-duplicating `UNION`, `EXCEPT`, `INTERSECT`) is recorded on the extract and
-becomes an assumption, worded in plain English with the SQL fragment, as soon as
-the extract is matched. A `WHERE` that only limits rows to the reconciliation
-period is a normal assumption; anything else is elevated. Either way a person
-must confirm it before the certificate can be RECONCILED.
-
-An output column the query computes instead of reading (a `CASE`, arithmetic, an
-aggregate) is an elevated assumption too, even when no row is left out, and the
-key, amount or date column it feeds is named. A SQLite database is hashed like a
-file (with its `-wal` log) when a person registers it, so editing it is caught.
-
-## Confirming assumptions (people only)
-
-A confirmation counts only if it is signed with the confirmer's key. Create your
-key once (it asks for a passphrase; the private key is stored encrypted in your
-user profile, `%USERPROFILE%\.recon\keys` on Windows, never in the workspace):
-
-```bash
-uv run tieout keys init --name "Your Name"
-```
-
-`tieout confirm` runs only in an interactive terminal, asks you to retype a
-random code and then for your passphrase, and signs the assumption's ID, a hash
-of its content, your name and the time. `certify` verifies every confirmation
-against your public key: one that is unsigned (for example `"confirmed": true`
-typed into the store), signed by another key, or whose assumption was edited
-after signing counts as unconfirmed, and the certificate says why. Certificates
-record the key's fingerprint and owner and show it prominently as the *expected*
-confirmer key. Anyone checking a certificate should compare it with what
-`tieout keys fingerprint` prints on the confirmer's own machine: a certificate checked
-against any other key is not theirs.
-This project's `.claude/settings.json` also denies these commands to Claude Code.
-
-## Signing a certificate off
-
-A RECONCILED certificate is balanced and rests only on confirmed assumptions, but it
-is not final until a person signs it off:
-
-```bash
-uv run tieout cert sign <certificate_id>
-```
-
-Like `tieout confirm`, this runs only in an interactive terminal, asks you to retype a
-code and then for your passphrase, and signs the certificate's ID, hash and status
-with your key. The sign-off is stored beside the certificate (it cannot go inside it
-without changing the hash it signs). `tieout cert show`, `get_certificate` and the HTML
-say whether a certificate is signed off; a hand-written, moved or foreign-key sign-off
-does not count.
-
-## CLI
-
-Confirming an assumption is a human-only action and exists only here:
-
-```bash
-uv run tieout assumptions list
+tieout assumptions list
 ```
 
 ```bash
-uv run tieout confirm <assumption_id>
+tieout confirm <assumption_id>
+```
+
+When it reports a RECONCILED certificate, check it and sign it off:
+
+```bash
+tieout cert show <certificate_id> --html certificate.html
 ```
 
 ```bash
-uv run tieout cert list
+tieout cert sign <certificate_id>
 ```
 
-```bash
-uv run tieout cert show <certificate_id> --html report.html
-```
+## Security
+
+The AI is not trusted, and AI TieOut assumes it may have a shell and write access
+to the same files you do. So the important protections are cryptographic and
+detective, not permissions:
+
+- Sources are hashed and their registrations signed, so an edited file or a
+  swapped source keeps the certificate OPEN, or is refused outright.
+- Confirmations and sign-offs are signed with the person's passphrase-protected
+  key. A confirmation typed into a file, or signed with any other key, does not
+  count.
+- SQL may not truncate results. Filters and computed columns become assumptions,
+  and anything that loosens a default is flagged elevated.
+- Certificates are hashed and must be self-consistent, so altered or forged ones
+  are refused or flagged as unverifiable.
+- Every certificate shows the fingerprint of the key behind it. Check it against
+  `tieout keys fingerprint` on the signer's machine, or against the fingerprint the
+  signer publishes.
+
+[SECURITY.md](SECURITY.md) has the threat model, what is caught, flagged and out of
+scope, and the results of a red-team exercise, including its known limitations.
+
+## Why I built this
+
+I'm an analytics engineer with a finance background. A lot of my working life has
+gone into the question every month-end asks: why doesn't this number match that
+one? The answer is almost always findable, but it takes hours, and the result
+usually lives in a spreadsheet that only its author can follow.
+
+AI assistants changed the first half of that job overnight. They are fast,
+tireless investigators. But I wouldn't sign off on a number because an AI said it
+was fine, and I wouldn't ask a CFO to either. What I wanted was the speed of the AI
+with the rigour of a reconciliation that proves itself: every dollar traced to
+rows, every judgement call written down and confirmed by a person.
+
+AI TieOut is that tool. I hope it saves you some month-ends.
+
+## Contributing
+
+Contributions are welcome, especially new checks. [CONTRIBUTING.md](CONTRIBUTING.md)
+explains how to set up, the ground rules, and how to write your own check.
+
+## Licence
+
+Apache-2.0. See [LICENSE](LICENSE).
