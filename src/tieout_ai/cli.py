@@ -42,6 +42,7 @@ from tieout_ai.signing import (
     keys_dir,
     load_signer,
     load_trusted_key,
+    migrate_legacy_keys,
 )
 
 app = typer.Typer(help="AI TieOut command-line interface.", no_args_is_help=True)
@@ -117,10 +118,19 @@ def main(
     ctx: typer.Context,
     home: Annotated[
         Path | None,
-        typer.Option("--home", envvar="RECON_HOME", help="Workspace directory (default: .recon)."),
+        typer.Option(
+            "--home", envvar="TIEOUT_HOME", help="Workspace directory (default: .tieout)."
+        ),
     ] = None,
 ) -> None:
-    """tieout_ai command-line interface."""
+    """AI TieOut command-line interface."""
+    moved = migrate_legacy_keys()
+    if moved is not None:
+        typer.echo(
+            f"Copied your confirmer key from {Path.home() / '.recon' / 'keys'} to {moved}, "
+            "its new location. The old folder is left in place; you can delete it.",
+            err=True,
+        )
     ctx.obj = {"workspace": Workspace(home)}
 
 

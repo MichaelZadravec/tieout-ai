@@ -59,15 +59,15 @@ class DemoResult:
 @contextmanager
 def _keys_in(directory: Path) -> Iterator[None]:
     """Point the engine at the demo's own key folder, and put things back after."""
-    previous = os.environ.get("RECON_KEYS_DIR")
-    os.environ["RECON_KEYS_DIR"] = str(directory)
+    previous = os.environ.get("TIEOUT_KEYS_DIR")
+    os.environ["TIEOUT_KEYS_DIR"] = str(directory)
     try:
         yield
     finally:
         if previous is None:
-            os.environ.pop("RECON_KEYS_DIR", None)
+            os.environ.pop("TIEOUT_KEYS_DIR", None)
         else:
-            os.environ["RECON_KEYS_DIR"] = previous
+            os.environ["TIEOUT_KEYS_DIR"] = previous
 
 
 def run_demo(out_dir: Path) -> list[DemoResult]:
@@ -81,7 +81,7 @@ def run_demo(out_dir: Path) -> list[DemoResult]:
         for case, (module, plan) in CASES.items():
             data = out_dir / case / "data"
             summary = (module.generate if case == "clean" else module.generate_messy)(data)
-            workspace = Workspace(out_dir / case / ".recon")
+            workspace = Workspace(out_dir / case / ".tieout")
             for conn_id, name in (("dashboard", module.DASHBOARD_FILE), ("xero", module.XERO_FILE)):
                 path = data / name
                 registered = {

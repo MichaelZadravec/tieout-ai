@@ -112,7 +112,7 @@ tieout connections add-sql ledger
 ```
 
 Open Claude Code in that folder and ask it to reconcile, in plain English. Other
-MCP clients can run the server directly with `tieout-mcp --home .recon`. When the
+MCP clients can run the server directly with `tieout-mcp --home .tieout`. When the
 AI reports assumptions to confirm, review them and confirm the ones you agree with:
 
 ```bash

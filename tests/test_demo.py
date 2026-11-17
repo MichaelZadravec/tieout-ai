@@ -41,10 +41,10 @@ def test_demo_certificates_say_they_were_signed_with_a_throwaway_key(tmp_path):
 
 def test_demo_never_touches_the_real_confirmer_key(tmp_path, confirmer_keys):
     before = {p.name: p.read_bytes() for p in confirmer_keys.iterdir()}
-    env = os.environ.get("RECON_KEYS_DIR")
+    env = os.environ.get("TIEOUT_KEYS_DIR")
     run_demo(tmp_path / "demo")
 
-    assert os.environ.get("RECON_KEYS_DIR") == env
+    assert os.environ.get("TIEOUT_KEYS_DIR") == env
     assert {p.name: p.read_bytes() for p in confirmer_keys.iterdir()} == before
     assert (tmp_path / "demo" / "keys").is_dir()
 

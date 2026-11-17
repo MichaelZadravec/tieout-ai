@@ -43,4 +43,4 @@ def confirmer_keys(tmp_path_factory) -> Path:
 @pytest.fixture(autouse=True)
 def isolated_keys(confirmer_keys, monkeypatch):
     """Every test signs with the test confirmer key, never a real one."""
-    monkeypatch.setenv("RECON_KEYS_DIR", str(confirmer_keys))
+    monkeypatch.setenv("TIEOUT_KEYS_DIR", str(confirmer_keys))

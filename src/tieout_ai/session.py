@@ -1,6 +1,6 @@
 """Local state: the workspace on disk, and one reconciliation in progress.
 
-A Workspace is a directory (default `.recon/`, or $RECON_HOME) holding the
+A Workspace is a directory (default `.tieout/`, or $TIEOUT_HOME) holding the
 connections (with their credentials), the assumption store and issued
 certificates. A Session is one reconciliation: two extracts, a MatchSpec, the
 checks run so far, and certification.
@@ -42,7 +42,7 @@ class CertificateError(Exception):
 
 
 def default_home() -> Path:
-    return Path(os.environ.get("RECON_HOME") or ".recon")
+    return Path(os.environ.get("TIEOUT_HOME") or ".tieout")
 
 
 class Workspace:

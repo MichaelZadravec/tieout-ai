@@ -39,7 +39,7 @@ short directory.
 - `checks/`: the discrepancy checks, one interface and a registry
 - `certify.py`: conservation checks, certificates and their verification
 - `assumptions.py`, `connections.py`, `session.py`: the on-disk workspace
-  (`.recon/`), read afresh on every call
+  (`.tieout/`), read afresh on every call
 - `signing.py`: confirmer keys, signed confirmations, registrations and sign-offs
 - `service.py` and `mcp_server.py`: what the AI can call (and nothing it must not)
 - `cli.py`: the `tieout` command, including the human-only actions

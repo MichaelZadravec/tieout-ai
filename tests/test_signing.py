@@ -135,7 +135,7 @@ def test_a_confirmation_signed_with_another_key_is_not_trusted(session):
 def test_without_a_confirmer_key_nothing_counts_as_confirmed(session, monkeypatch, tmp_path):
     for assumption in session.workspace.assumptions.all():
         session.workspace.assumptions.confirm(assumption.id, signer())
-    monkeypatch.setenv("RECON_KEYS_DIR", str(tmp_path / "no-keys"))
+    monkeypatch.setenv("TIEOUT_KEYS_DIR", str(tmp_path / "no-keys"))
 
     assert session.certify().status == CertificateStatus.PROVISIONAL
 
@@ -150,7 +150,7 @@ def test_confirm_with_the_wrong_passphrase_confirms_nothing(session, interactive
 
 
 def test_confirm_needs_a_key(session, interactive, tmp_path, monkeypatch):
-    monkeypatch.setenv("RECON_KEYS_DIR", str(tmp_path / "no-keys"))
+    monkeypatch.setenv("TIEOUT_KEYS_DIR", str(tmp_path / "no-keys"))
     target = session.workspace.assumptions.all()[0].id
     result = recon(tmp_path, "confirm", target, input=f"{CODE}\n{PASSPHRASE}\n")
 
@@ -172,7 +172,7 @@ def test_reconfirming_repairs_a_hand_edited_confirmation(session, interactive, t
 
 
 def test_keys_init_creates_an_encrypted_key(tmp_path, monkeypatch, interactive):
-    monkeypatch.setenv("RECON_KEYS_DIR", str(tmp_path / "keys"))
+    monkeypatch.setenv("TIEOUT_KEYS_DIR", str(tmp_path / "keys"))
     made = recon(
         tmp_path, "keys", "init", "--name", "Sam Auditor", input="s3cret phrase\ns3cret phrase\n"
     )
@@ -188,7 +188,7 @@ def test_keys_init_creates_an_encrypted_key(tmp_path, monkeypatch, interactive):
 
 
 def test_keys_init_refuses_non_interactive_input(tmp_path, monkeypatch):
-    monkeypatch.setenv("RECON_KEYS_DIR", str(tmp_path / "keys"))
+    monkeypatch.setenv("TIEOUT_KEYS_DIR", str(tmp_path / "keys"))
     result = recon(tmp_path, "keys", "init", "--name", "X", input="s3cret phrase\ns3cret phrase\n")
 
     assert result.exit_code == 1
@@ -210,12 +210,12 @@ def test_short_passphrases_are_refused(tmp_path):
 def test_keys_live_in_the_user_profile_not_the_workspace_or_appdata(monkeypatch, tmp_path):
     """Not %APPDATA%: Windows redirects a packaged app's writes there (the Claude desktop
     app's MCP server would then read a different key from the one made in a terminal)."""
-    monkeypatch.delenv("RECON_KEYS_DIR")
+    monkeypatch.delenv("TIEOUT_KEYS_DIR")
     monkeypatch.setenv("USERPROFILE", str(tmp_path / "me"))
     monkeypatch.setenv("HOME", str(tmp_path / "me"))
     monkeypatch.setenv("APPDATA", str(tmp_path / "me" / "AppData" / "Roaming"))
 
-    assert keys_dir() == tmp_path / "me" / ".recon" / "keys"
+    assert keys_dir() == tmp_path / "me" / ".tieout" / "keys"
 
 
 def test_the_signature_covers_the_confirmation_time(session):

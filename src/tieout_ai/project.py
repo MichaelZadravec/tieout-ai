@@ -1,6 +1,6 @@
 """`tieout init`: make a folder ready for an AI to reconcile in, safely.
 
-It creates the workspace (`.recon/`), registers the MCP server for Claude Code
+It creates the workspace (`.tieout/`), registers the MCP server for Claude Code
 (`.mcp.json`) and writes Claude Code permissions (`.claude/settings.json`) that
 allow the recon tools but deny every human-only command (confirm, keys,
 connections) and any edit inside the workspace.
@@ -16,7 +16,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-WORKSPACE = ".recon"
+WORKSPACE = ".tieout"
 MCP_FILE = ".mcp.json"
 SETTINGS_FILE = Path(".claude") / "settings.json"
 MCP_NAME = "tieout"

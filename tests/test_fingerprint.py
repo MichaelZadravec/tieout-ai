@@ -33,7 +33,7 @@ def test_keys_fingerprint_prints_just_the_fingerprint():
 
 
 def test_keys_fingerprint_without_a_key_says_so(tmp_path, monkeypatch):
-    monkeypatch.setenv("RECON_KEYS_DIR", str(tmp_path / "none"))
+    monkeypatch.setenv("TIEOUT_KEYS_DIR", str(tmp_path / "none"))
     result = runner.invoke(app, ["keys", "fingerprint"])
 
     assert result.exit_code == 1

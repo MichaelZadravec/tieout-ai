@@ -51,7 +51,7 @@ def write(home, items):
 
 
 def test_add_file_signs_the_registration(tmp_path, csv_file, interactive):
-    home = tmp_path / ".recon"
+    home = tmp_path / ".tieout"
     added = recon(
         home, "connections", "add-file", "dashboard", str(csv_file), input=f"{PASSPHRASE}\n"
     )
@@ -64,7 +64,7 @@ def test_add_file_signs_the_registration(tmp_path, csv_file, interactive):
 
 
 def test_add_file_needs_a_terminal(tmp_path, csv_file):
-    home = tmp_path / ".recon"
+    home = tmp_path / ".tieout"
     result = recon(
         home, "connections", "add-file", "dashboard", str(csv_file), input=f"{PASSPHRASE}\n"
     )
@@ -75,7 +75,7 @@ def test_add_file_needs_a_terminal(tmp_path, csv_file):
 
 
 def test_add_file_with_the_wrong_passphrase_registers_nothing(tmp_path, csv_file, interactive):
-    home = tmp_path / ".recon"
+    home = tmp_path / ".tieout"
     result = recon(home, "connections", "add-file", "dashboard", str(csv_file), input="nope nope\n")
 
     assert result.exit_code == 1
@@ -95,7 +95,7 @@ def test_an_unsigned_connection_is_refused(tmp_path):
 
 def test_rewriting_a_registered_hash_breaks_the_signature(tmp_path, csv_file, interactive):
     """Attack 3: edit the file, then write its new hash into connections.json."""
-    home = tmp_path / ".recon"
+    home = tmp_path / ".tieout"
     recon(home, "connections", "add-file", "dashboard", str(csv_file), input=f"{PASSPHRASE}\n")
     with csv_file.open("a", encoding="utf-8") as fh:
         fh.write("INV-999,2026-10-05,1000.00,PAID\n")
@@ -109,7 +109,7 @@ def test_rewriting_a_registered_hash_breaks_the_signature(tmp_path, csv_file, in
 
 def test_a_hand_added_sql_connection_is_refused(tmp_path, invoices_db):
     """Attack 9: register a database by writing connections.json."""
-    home = tmp_path / ".recon"
+    home = tmp_path / ".tieout"
     home.mkdir()
     write(home, [{"id": "ledger", "type": "sql", "config": {"url": f"sqlite:///{invoices_db}"}}])
 
@@ -132,7 +132,7 @@ def test_a_connection_signed_with_another_key_is_refused(tmp_path):
 
 
 def test_refresh_signs_the_new_registration(tmp_path, csv_file, interactive):
-    home = tmp_path / ".recon"
+    home = tmp_path / ".tieout"
     recon(home, "connections", "add-file", "dashboard", str(csv_file), input=f"{PASSPHRASE}\n")
     with csv_file.open("a", encoding="utf-8") as fh:
         fh.write("\n")
@@ -147,7 +147,7 @@ def test_refresh_signs_the_new_registration(tmp_path, csv_file, interactive):
 
 
 def test_add_sql_signs_the_connection(tmp_path, invoices_db, interactive):
-    home = tmp_path / ".recon"
+    home = tmp_path / ".tieout"
     url = f"sqlite:///{invoices_db}"
     added = recon(home, "connections", "add-sql", "ledger", "--url", url, input=f"{PASSPHRASE}\n")
 
@@ -160,7 +160,7 @@ def test_add_sql_signs_the_connection(tmp_path, invoices_db, interactive):
 
 
 def test_list_connections_says_which_are_signed(tmp_path, csv_file, interactive):
-    home = tmp_path / ".recon"
+    home = tmp_path / ".tieout"
     recon(home, "connections", "add-file", "dashboard", str(csv_file), input=f"{PASSPHRASE}\n")
     items = stored(home)
     items.append({"id": "rogue", "type": "file", "config": {"path": str(csv_file)}})

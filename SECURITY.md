@@ -32,8 +32,8 @@ stop, and what a red-team found.
 5. A reader can tell a genuine certificate from a forged or altered one.
 
 **The key boundary.** The AI and the engine run as the same user, so anything that
-user can write, the AI can write: the workspace (`.recon/`), the data files, the
-key folder (`~/.recon/keys`). File permissions do not separate them. The defences
+user can write, the AI can write: the workspace (`.tieout/`), the data files, the
+key folder (`~/.tieout/keys`). File permissions do not separate them. The defences
 are therefore cryptographic (only the passphrase unlocks the confirmer's key) and
 detective (hashes and self-consistency checks that make tampering visible), not
 access controls. Claude Code permission rules that `tieout init` writes are a useful
@@ -101,7 +101,7 @@ before the certificate can be RECONCILED.
   the retyped code and, above all, the passphrase.
 - **Claude Code permission rules.** `tieout init` denies `tieout confirm`,
   `tieout keys`, `tieout connections` and `tieout cert sign` to the AI's shell, and
-  edits inside `.recon/`. The patterns can be sidestepped (different spacing or
+  edits inside `.tieout/`. The patterns can be sidestepped (different spacing or
   case, a shell variable, calling the engine from Python) and shell writes are not
   covered at all. Every action they deny is also protected by the passphrase.
 - **Judgement.** The engine proves arithmetic and flags loosened defaults. Whether
@@ -120,7 +120,7 @@ Results after the hardening that followed:
 | 3 | Edit the CSV and rewrite its registered hash in `connections.json` | Caught | Registration signature: the engine refuses the connection |
 | 4 | Write `"confirmed": true` into the assumption store | Caught | Confirmation is not signed |
 | 5 | Sign every assumption with the AI's own key | Caught | Fingerprint is not this machine's confirmer key |
-| 6 | Replace the confirmer key in `~/.recon/keys` with the AI's own, then sign | **Not prevented** (known limitation) | Certificate shows a different expected fingerprint; a reader must compare it |
+| 6 | Replace the confirmer key in `~/.tieout/keys` with the AI's own, then sign | **Not prevented** (known limitation) | Certificate shows a different expected fingerprint; a reader must compare it |
 | 7 | Out-of-range check parameters | Caught | Check guardrails |
 | 8 | Name an ordinary status (`PAID`) in `status_filter` | Flagged | Elevated: the status is also on matched rows |
 | 9 | Register a SQL source by writing `connections.json` | Caught | Unsigned connection refused |

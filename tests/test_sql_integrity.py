@@ -127,7 +127,7 @@ def recon(home, *args, input=None):
 
 @pytest.fixture
 def registered_db(tmp_path, invoices_db, interactive):
-    home = tmp_path / ".recon"
+    home = tmp_path / ".tieout"
     url = f"sqlite:///{invoices_db}"
     added = recon(home, "connections", "add-sql", "ledger", "--url", url, input=f"{PASSPHRASE}\n")
     assert added.exit_code == 0, added.output

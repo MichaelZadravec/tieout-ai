@@ -113,8 +113,8 @@
       "PowerShell(*tieout-ai.exe cert sign*)",
       "PowerShell(*recon.exe cert sign*)",
       "PowerShell(*tieout_ai.cli cert sign*)",
-      "Edit(/.recon/**)",
-      "Edit(.recon/**)"
+      "Edit(/.tieout/**)",
+      "Edit(.tieout/**)"
     ]
   }
 }

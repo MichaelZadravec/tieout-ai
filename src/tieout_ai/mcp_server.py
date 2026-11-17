@@ -203,7 +203,7 @@ def build_server(workspace: Workspace | None = None) -> MCPServer:
 def main() -> None:
     parser = argparse.ArgumentParser(description="tieout_ai MCP server (stdio)")
     parser.add_argument(
-        "--home", type=Path, default=None, help="Workspace directory (default: .recon)"
+        "--home", type=Path, default=None, help="Workspace directory (default: .tieout)"
     )
     args = parser.parse_args()
     logging.basicConfig(level=logging.WARNING)

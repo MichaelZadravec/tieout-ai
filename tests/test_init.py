@@ -25,10 +25,10 @@ def files_of(folder):
 def test_init_writes_the_workspace_mcp_config_and_settings(tmp_path):
     init_folder(tmp_path)
 
-    assert (tmp_path / ".recon").is_dir()
+    assert (tmp_path / ".tieout").is_dir()
     mcp = json.loads((tmp_path / ".mcp.json").read_text(encoding="utf-8"))
     assert mcp == {
-        "mcpServers": {"tieout": {"command": "tieout-mcp", "args": ["--home", ".recon"]}}
+        "mcpServers": {"tieout": {"command": "tieout-mcp", "args": ["--home", ".tieout"]}}
     }
     settings = json.loads((tmp_path / ".claude" / "settings.json").read_text(encoding="utf-8"))
     assert settings["permissions"]["allow"] == ["mcp__tieout__*"]
@@ -40,8 +40,8 @@ def test_init_writes_the_workspace_mcp_config_and_settings(tmp_path):
                 assert f"{tool}({name} {command}*)" in deny
                 assert f"{tool}(*{name} {command}*)" in deny
     assert "Bash(uvx tieout-ai cert sign*)" in deny
-    assert "Edit(.recon/**)" in deny
-    assert "Edit(/.recon/**)" in deny
+    assert "Edit(.tieout/**)" in deny
+    assert "Edit(/.tieout/**)" in deny
 
 
 def test_denied_commands_cover_every_human_only_action():
@@ -79,11 +79,11 @@ def test_init_keeps_whatever_the_folder_already_has(tmp_path):
 
 
 def test_init_leaves_an_existing_workspace_alone(tmp_path):
-    (tmp_path / ".recon").mkdir()
-    (tmp_path / ".recon" / "connections.json").write_text("[]\n", encoding="utf-8")
+    (tmp_path / ".tieout").mkdir()
+    (tmp_path / ".tieout" / "connections.json").write_text("[]\n", encoding="utf-8")
     init_folder(tmp_path)
 
-    assert (tmp_path / ".recon" / "connections.json").read_text(encoding="utf-8") == "[]\n"
+    assert (tmp_path / ".tieout" / "connections.json").read_text(encoding="utf-8") == "[]\n"
 
 
 def recon_init(folder, input=None):
@@ -112,7 +112,7 @@ def test_cli_init_prints_next_steps(tmp_path, monkeypatch):
 
 
 def test_cli_init_creates_a_key_when_there_is_none(tmp_path, monkeypatch):
-    monkeypatch.setenv("RECON_KEYS_DIR", str(tmp_path / "keys"))
+    monkeypatch.setenv("TIEOUT_KEYS_DIR", str(tmp_path / "keys"))
     monkeypatch.setattr(cli, "_stdin_is_tty", lambda: True)
     result = recon_init(tmp_path / "trial", input="Sam Auditor\ns3cret phrase\ns3cret phrase\n")
 
@@ -121,7 +121,7 @@ def test_cli_init_creates_a_key_when_there_is_none(tmp_path, monkeypatch):
 
 
 def test_cli_init_without_a_terminal_explains_how_to_make_the_key(tmp_path, monkeypatch):
-    monkeypatch.setenv("RECON_KEYS_DIR", str(tmp_path / "keys"))
+    monkeypatch.setenv("TIEOUT_KEYS_DIR", str(tmp_path / "keys"))
     result = recon_init(tmp_path / "trial")
 
     assert result.exit_code == 0, result.output
@@ -139,7 +139,7 @@ def test_the_folder_init_makes_runs_the_server(tmp_path, run):
 
     for _ in range(run):
         init_folder(tmp_path)
-    workspace = Workspace(tmp_path / ".recon")
+    workspace = Workspace(tmp_path / ".tieout")
     workspace.connections.add(registered_file("dashboard", FIXTURE_DATA / "dashboard_oct2026.csv"))
 
     assert build_server(workspace) is not None

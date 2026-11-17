@@ -31,7 +31,7 @@ def interactive(monkeypatch):
 @pytest.fixture
 def trial(tmp_path, interactive):
     """A workspace whose two sources are copies of the clean fixture, registered by a person."""
-    home = tmp_path / ".recon"
+    home = tmp_path / ".tieout"
     files = {}
     for conn_id, name in (("dashboard", "dashboard_oct2026.csv"), ("xero", "xero_oct_nov2026.csv")):
         files[conn_id] = tmp_path / name

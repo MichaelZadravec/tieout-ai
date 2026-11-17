@@ -2,8 +2,8 @@
 
 `tieout keys init` creates an Ed25519 keypair. The private key is encrypted with a
 passphrase the person chooses and lives outside the workspace, in the user
-profile (`~/.recon/keys`, i.e. `%USERPROFILE%\\.recon\\keys` on Windows, or
-$RECON_KEYS_DIR). The key records the name of its owner. It is deliberately not
+profile (`~/.tieout/keys`, i.e. `%USERPROFILE%\\.tieout\\keys` on Windows, or
+$TIEOUT_KEYS_DIR). The key records the name of its owner. It is deliberately not
 under %APPDATA%: Windows redirects a packaged app's writes there to a private
 copy, so the Claude desktop app's MCP server and a person's own terminal could
 see two different keys.
@@ -57,10 +57,34 @@ class SigningError(Exception):
 
 
 def keys_dir() -> Path:
-    override = os.environ.get("RECON_KEYS_DIR")
+    override = os.environ.get("TIEOUT_KEYS_DIR")
     if override:
         return Path(override)
-    return Path.home() / ".recon" / "keys"
+    migrate_legacy_keys()
+    return Path.home() / ".tieout" / "keys"
+
+
+def migrate_legacy_keys() -> Path | None:
+    """Copy a key from ~/.recon/keys (the earlier name) to ~/.tieout/keys, once.
+
+    Only for the default location, only when there is no key at the new one yet, and
+    only a complete key whose copy has the same fingerprint. The original is left in
+    place. Returns the new folder if a key was copied, otherwise None.
+    """
+    if os.environ.get("TIEOUT_KEYS_DIR"):
+        return None
+    old, new = Path.home() / ".recon" / "keys", Path.home() / ".tieout" / "keys"
+    files = (PRIVATE_FILE, PUBLIC_FILE, OWNER_FILE)
+    if (new / PRIVATE_FILE).exists() or not all((old / name).is_file() for name in files):
+        return None
+    new.mkdir(parents=True, exist_ok=True)
+    _write_private(new / PRIVATE_FILE, (old / PRIVATE_FILE).read_bytes())
+    for name in (PUBLIC_FILE, OWNER_FILE):
+        (new / name).write_bytes((old / name).read_bytes())
+    copied, original = load_trusted_key(new), load_trusted_key(old)
+    if copied is None or original is None or copied.fingerprint != original.fingerprint:
+        raise SigningError(f"Could not copy the confirmer key from {old} to {new}")
+    return new
 
 
 def fingerprint(public_key: Ed25519PublicKey) -> str:

@@ -14,6 +14,7 @@ wheels/
 .ruff_cache/
 
 # Local engine state (connections hold credentials; never commit)
+.tieout/
 .recon/
 *.sqlite
 *.db
