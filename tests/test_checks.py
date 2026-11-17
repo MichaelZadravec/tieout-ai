@@ -6,7 +6,6 @@ from pydantic import BaseModel
 from support import CLEAN_PLAN as PLAN
 from support import make_extract
 
-from fixtures.generate import generate
 from recon_engine.checks import (
     Check,
     CheckContext,
@@ -18,6 +17,7 @@ from recon_engine.checks import (
     run_checks,
 )
 from recon_engine.connectors.files import FileConnector
+from recon_engine.fixtures.generate import generate
 from recon_engine.match import match
 from recon_engine.models import Connection, ConnectionType, MatchSpec, Period
 

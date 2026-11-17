@@ -3,9 +3,14 @@ from pathlib import Path
 
 import pytest
 
-from fixtures.generate_messy import DASHBOARD_FILE, MANIFEST_FILE, XERO_FILE, generate_messy
 from recon_engine.checks import CheckContext, CheckParameterError, get_check, run_checks
 from recon_engine.connectors.files import FileConnector
+from recon_engine.fixtures.generate_messy import (
+    DASHBOARD_FILE,
+    MANIFEST_FILE,
+    XERO_FILE,
+    generate_messy,
+)
 from recon_engine.match import match
 from recon_engine.models import Connection, ConnectionType, MatchSpec, Period
 

@@ -12,6 +12,8 @@ import getpass
 import secrets
 import shutil
 import sys
+import tempfile
+import webbrowser
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated
@@ -126,6 +128,35 @@ def main(
 def version() -> None:
     """Print the engine version."""
     typer.echo(__version__)
+
+
+@app.command()
+def demo(
+    out: Annotated[
+        Path | None,
+        typer.Option("--out", help="Folder for the demo (default: a new temporary folder)."),
+    ] = None,
+    open_html: Annotated[
+        bool, typer.Option("--open/--no-open", help="Open the HTML certificates.")
+    ] = True,
+) -> None:
+    """Run the clean and messy fixtures end to end, with a throwaway key, and show them."""
+    from recon_engine.demo import run_demo
+
+    folder = (out or Path(tempfile.mkdtemp(prefix="recon-demo-"))).resolve()
+    typer.echo(f"Running the demo in {folder}")
+    typer.echo("It makes a throwaway confirmer key there; your own key is not used.")
+    typer.echo("")
+    for result in run_demo(folder):
+        status = result.status + (", signed off" if result.signed_off else "")
+        typer.echo(f"  {result.case:<6} {result.certificate_id}  {status}")
+        typer.echo(f"         gap {money(result.gap)}, unexplained (net) {money(result.residual)}")
+        typer.echo(f"         {result.html}")
+        if open_html:
+            webbrowser.open(result.html.as_uri())
+    typer.echo("")
+    typer.echo("The clean pair reconciles. The messy pair stays OPEN: what no check can")
+    typer.echo("prove is reported as unexplained, not forced to zero.")
 
 
 @app.command()

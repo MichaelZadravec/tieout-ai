@@ -8,6 +8,18 @@ See [CLAUDE.md](CLAUDE.md) for the full build brief.
 See [SECURITY.md](SECURITY.md) for the threat model, what the engine catches and flags,
 and red-team results including what is still open.
 
+## Try it
+
+```bash
+recon demo
+```
+
+Runs both fixture pairs end to end in a temporary folder and opens the two HTML
+certificates: the clean pair reconciles and is signed off; the messy pair stays
+honestly OPEN. The demo confirms and signs with a throwaway key it makes for the
+purpose, so your own key is never used (`--out DIR` keeps the output, `--no-open`
+skips the browser).
+
 ## Development
 
 ```bash
@@ -38,7 +50,7 @@ or point `UV_PROJECT_ENVIRONMENT` at a short directory.
 - `checks/`: discrepancy checks (timing, status_filter, tax_basis, duplicates,
   sign_credit, rounding) behind one interface and registry; the engine sums each
   bucket and refuses overlapping claims
-- `fixtures/generate.py`: deterministic "dashboard vs Xero" pair with injected
+- `fixtures/` (code in `recon_engine.fixtures`): deterministic "dashboard vs Xero" pair with injected
   issues; output and answer key live in `fixtures/data/`
 
 - `fixtures/generate_messy.py`: a messy pair (case/whitespace variants, blanks,
