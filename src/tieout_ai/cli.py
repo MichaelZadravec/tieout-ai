@@ -415,7 +415,8 @@ def show_certificate(
     out(f"{cert.id}  {cert.status.value}")
     if cert.confirmer_key_fingerprint:
         out(f"Expected confirmer key: {cert.confirmer_key_fingerprint} ({cert.confirmer})")
-        out("  Check it matches `tieout keys fingerprint` on the confirmer's own machine.")
+        out("  Check it against `tieout keys fingerprint` on the confirmer's own machine,")
+        out("  or against the fingerprint the signer publishes.")
     else:
         out("No confirmer key is recorded: its confirmations cannot be verified.")
     out(f"Hash verified: {cert.certificate_hash}")

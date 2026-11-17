@@ -169,8 +169,9 @@ def _fingerprint_panel(cert: Certificate) -> str:
     return f"""<div class="fingerprint">
   <div class="meta">Expected confirmer key ({_e(cert.confirmer)})</div>
   <div class="key">{_e(cert.confirmer_key_fingerprint)}</div>
-  <div class="meta">Check this matches what <code>tieout keys fingerprint</code> prints on the
-  confirmer's own machine. If it does not, these confirmations were not made with their key.</div>
+  <div class="meta">Check it against what <code>tieout keys fingerprint</code> prints on the
+  confirmer's own machine, or against the fingerprint the signer publishes. If it does not
+  match, these confirmations were not made with their key.</div>
 </div>"""
 
 
