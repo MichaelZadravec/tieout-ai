@@ -1,36 +1,56 @@
-# Reconciliation Engine — Build Brief
+# AI TieOut — Brief for Claude Code
 
-> Product: **AI TieOut**. Package `tieout-ai` (import `tieout_ai`), CLI `tieout` (`recon` is a
-> temporary alias), MCP server `tieout-mcp`. This file is the brief for Claude Code.
-> Work phase by phase. Write tests first. Stop at the end of each phase for review.
+> Product: **AI TieOut**. Package `tieout-ai` (import `tieout_ai`), CLI `tieout` (also
+> installed as `tieout-ai`, so `uvx tieout-ai ...` works), MCP server `tieout-mcp`.
+> Licence: Apache-2.0. This file is the brief for Claude Code working on this repo.
+> Write tests first. Stop for review at the end of each piece of work.
 
-## 1. What we're building
+## 1. What this is
 
-A deterministic Python engine that **proves** whether two business numbers agree, and if not, **explains every dollar of the difference** with evidence rows. It is called by AI agents (Claude, ChatGPT, Copilot) through an MCP server, but contains **no LLM itself**.
+A deterministic Python engine that **proves** whether two business numbers agree, and if
+not, **explains every dollar of the difference** with evidence rows. AI agents (Claude,
+ChatGPT, Copilot) drive it through an MCP server, but it contains **no LLM itself**.
 
-**Core rule: the AI proposes, the engine proves.**
+**Core rule: the AI proposes, code proves, people confirm.**
 - The AI finds sources, writes queries, forms hypotheses and explains results.
-- The engine fetches data, matches rows, does the arithmetic, runs discrepancy tests, and issues a certificate.
+- The engine fetches data, matches rows, does the arithmetic, runs the checks, and
+  issues a certificate.
+- A person confirms the judgement calls and signs certificates off.
 - The AI never passes data values to the engine, only references and parameters.
 
-This is NOT an app, NOT a Claude wrapper, and NOT an analytics/dashboard tool.
+This is NOT an app, NOT a Claude wrapper, NOT an analytics/dashboard tool, and there is
+no hosted or paid service. Everything runs on the user's machine or in their cloud.
 
 ## 2. Non-negotiable principles
 
 1. **No LLM calls anywhere in this repo.** Everything is deterministic and reproducible.
 2. **The engine fetches its own data.** It uses its own credentials, which the AI never sees.
-3. **Read-only.** SQL is parsed (sqlglot) and rejected unless it is a single SELECT. Connections should use read-only DB users.
-4. **Everything is hashed.** Every extract records the source, the query text, query hash, row count, column totals, data hash and timestamp.
-5. **Conservation.** Buckets + residual must equal the gap exactly. No row may be in two buckets.
-6. **Honest residuals.** Anything not explained stays "unexplained". A certificate can be `RECONCILED` (residual = 0) or `OPEN`.
-7. **Assumptions are explicit.** Every parameter that affects the result (filters, exclusions, date basis, key choice) is logged as an Assumption. Only a human can confirm one, via the CLI. Confirmation is never exposed via MCP, so the AI can't self-confirm.
-8. **Guarded tests.** Each test has hard limits (e.g. timing window max ±1 period; a status test only counts rows whose status actually matches in the source).
-9. **Versioned.** Certificates record the engine version and test versions.
+3. **Read-only.** SQL is parsed (sqlglot) and rejected unless it is a single SELECT.
+   Connections should use read-only DB users.
+4. **Everything is hashed.** Every extract records the source, the query text, query
+   hash, row count, column totals, data hash and timestamp.
+5. **Conservation.** Buckets + residual must equal the gap exactly. No row may be in two
+   buckets.
+6. **Honest residuals.** Anything not explained stays "unexplained". A certificate is
+   `OPEN` (something unexplained), `PROVISIONAL` (all explained, some assumptions
+   unconfirmed) or `RECONCILED` (all explained and confirmed).
+7. **Assumptions are explicit.** Every parameter that affects the result (filters,
+   exclusions, date basis, key choice) is logged as an assumption, scoped to the records
+   it covers. Only a person can confirm one, via the CLI; never via MCP.
+8. **Guarded checks.** Each check has hard limits (e.g. timing window at most one
+   period; a status check only counts rows whose status actually matches in the source).
+9. **Versioned.** Certificates record the engine version and check versions.
 10. **The on-disk stores are the only source of truth.** Never cache them across calls.
-11. **Loosening is elevated.** Any parameter or filter that loosens a default must produce an elevated assumption.
-12. **Sources are what was registered.** File sources must match their registered hash; SQL must not truncate.
-13. **Signed confirmations.** Confirmations are valid only if signed with the confirmer's key.
-14. **Humans register, refresh and confirm.** Anything that registers, refreshes or confirms is human-only and interactive.
+11. **Loosening is elevated.** Any parameter or filter that loosens a default must
+    produce an elevated assumption with a one-line reason.
+12. **Sources are what was registered.** File and SQLite sources must match their
+    registered hash; SQL must not truncate; registrations are signed.
+13. **Signed confirmations.** Confirmations are valid only if signed with the
+    confirmer's key.
+14. **Humans register, refresh, confirm and sign off.** Anything that does so is
+    human-only and interactive, and is never reachable from the MCP server.
+15. **Final means signed off.** A RECONCILED certificate is final only once a person
+    signs it off. Stored certificates must be self-consistent to load.
 
 ## 3. Architecture
 
@@ -38,125 +58,115 @@ This is NOT an app, NOT a Claude wrapper, and NOT an analytics/dashboard tool.
 AI agent (any model)
    │  MCP tool calls (references + parameters only)
    ▼
-MCP server  ──►  Engine core
-                   ├── connectors/   (fetch + hash extracts)
-                   ├── match/        (row-level matching, gap)
-                   ├── tests/        (discrepancy test library)
-                   ├── certify/      (conservation checks, certificate)
-                   └── session/      (state for one reconciliation)
+MCP server (tieout-mcp)  ──►  Engine core
+                                ├── connectors/   (fetch, hash and check sources)
+                                ├── match         (row-level matching, gap)
+                                ├── checks/       (discrepancy check library)
+                                ├── certify       (conservation, certificates, sign-off checks)
+                                └── session       (workspace and one reconciliation)
    ▼
-Certificate (JSON + HTML) returned locally
-   ▼ (later, optional, paid)
-Verification service: receives hash + summary metadata only → signs → verify URL
+Certificate (JSON + HTML), stored locally in the workspace
+
+Person, in their own terminal (tieout CLI):
+  register sources · confirm assumptions · sign certificates off   (signed with their key)
 ```
 
-Runs on the customer's machine or in their cloud. GitHub is only where the code is distributed from.
+The workspace is `.tieout/` in the working folder (or `$TIEOUT_HOME`). The confirmer's
+key is in `~/.tieout/keys` (or `$TIEOUT_KEYS_DIR`); a key from the earlier
+`~/.recon/keys` is copied there once, automatically.
 
 ## 4. Repo structure
 
 ```
-tieout_ai/
-  pyproject.toml          # uv, Python 3.11+
-  src/tieout_ai/
-    models.py             # pydantic models (section 5)
-    hashing.py            # canonical JSON + data hashing
-    connectors/
-      base.py
-      files.py            # CSV / Excel uploads
-      sql.py              # SQLAlchemy, SELECT-only via sqlglot
-      powerbi.py          # Phase 5
-    match.py
-    checks/               # discrepancy tests, called "checks" to avoid a clash with pytest
-      base.py             # Check interface + registry
-      timing.py
-      status_filter.py
-      tax_basis.py
-      duplicates.py
-      sign_credit.py
-    certify.py
-    render.py             # certificate → HTML
-    session.py
-    cli.py                # typer: connections, confirm assumptions, view certs
-    mcp_server.py         # Phase 4
-  fixtures/
-    generate.py           # synthetic datasets with injected discrepancies
-  tests/                  # pytest
+pyproject.toml            # uv, Python 3.11+
+src/tieout_ai/
+  models.py               # pydantic models (section 5)
+  hashing.py              # canonical JSON, data and file hashing
+  connectors/             # base.py, files.py (CSV/Excel), sql.py (SELECT-only, filters)
+  match.py
+  checks/                 # timing, status_filter, tax_basis, duplicates, sign_credit, rounding
+    base.py               # Check interface, Proposal, registry
+  assumptions.py          # assumption store
+  connections.py          # connection store, signed registrations
+  signing.py              # confirmer keys, signed confirmations and records
+  certify.py              # conservation, certificates, self-consistency, sign-off checks
+  session.py              # workspace and one reconciliation
+  service.py              # what the MCP server exposes
+  mcp_server.py
+  cli.py                  # tieout: init, demo, connections, confirm, cert, keys
+  project.py              # tieout init: workspace, .mcp.json, Claude Code permissions
+  render.py               # certificate -> HTML
+  demo.py                 # tieout demo
+  fixtures/               # deterministic clean and messy "dashboard vs Xero" pairs
+fixtures/                 # committed fixture data + regeneration entry points
+tests/                    # pytest
+docs/design/              # design notes from earlier rounds of work
+.github/workflows/        # CI (3 OSes x Python 3.11/3.14) and PyPI publishing
 ```
 
 ## 5. Data model (pydantic)
 
-- **Connection**: id, type (file/sql/powerbi), config (credentials stored locally, never returned)
-- **Extract**: id, connection_id, query_text, query_hash, row_count, column_totals, data_hash, fetched_at
+- **Connection**: id, type (file/sql/powerbi), config (path or URL, registration hash,
+  signature; stored locally, never returned to the AI)
+- **Extract**: id, connection_id, query_text, query_hash, columns, row_count,
+  column_totals, data_hash, fetched_at, changed_since_registration, source_warning,
+  query_filters, computed_columns
 - **MatchSpec**: extract_a, extract_b, key columns, amount column, date column(s), period
-- **MatchResult**: matched_count, only_a rows, only_b rows, amount_differences, gap
-- **Assumption**: id, description, parameter, value, proposed_by (ai/human), confirmed (bool), confirmed_by, confirmed_at
-- **Bucket**: check_name, check_version, parameters, row_ids, amount, row_count, assumptions used
-- **Certificate**: id, engine_version, status (RECONCILED/OPEN), extracts (with hashes), match_spec, buckets, residual, unconfirmed_assumptions, created_at, certificate_hash
+- **MatchResult**: matched_count, only_a / only_b rows, amount_differences, excluded and
+  invalid rows, totals, gap
+- **Assumption**: id, description, parameter, value, scope, elevated, elevated_reason,
+  proposed_by, confirmed, confirmed_by, confirmed_at, signature fields
+- **Bucket**: check_name, check_version, parameters, item_ids, row_ids, amount,
+  row_count, assumption_ids
+- **Certificate**: id, engine_version, status, extracts, match_spec, buckets, residual,
+  gross_unexplained, residual_items, assumptions, unconfirmed and unverified
+  confirmations, confirmer key fingerprint, source_warnings, supersedes, certificate_hash.
+  A sign-off is stored beside it, in `certificates/signoffs/`.
 
 ## 6. Check interface
 
-Every check:
-- takes the unmatched rows plus the extracts it's allowed to read, and validated parameters
-- enforces its own guardrails (rejects out-of-range parameters)
-- returns a Bucket containing **only** rows it can prove, with the amount summed by the engine
-- never claims rows already claimed by another bucket
+Every check (see CONTRIBUTING.md, "Write your own check"):
+- has a `Params` model whose guardrails reject out-of-range parameters
+- `prove()`s only the open items it can prove; the engine sums the amounts
+- never claims items already claimed by another bucket (the engine refuses it)
 - returns an empty bucket (not an error) when the hypothesis is wrong
+- `propose_assumptions()` returns `Proposal`s scoped by the engine to the claimed
+  records, with `loosens=` set whenever a parameter loosens the default
 
-## 7. Phases
+## 7. Status and next steps
 
-### Phase 0: Scaffold
-uv project, pytest, ruff, pydantic, pandas, sqlalchemy, sqlglot, typer.
-**Done when:** `uv run pytest` passes on an empty test suite.
+Done: extracts and matching; the six checks; certificates and HTML; the MCP server;
+hardening from live use and a red-team (scoped and elevated assumptions, file and
+SQLite hashing, signed registrations, signed confirmations, SQL filter and
+computed-column assumptions, self-consistent certificates, sign-off); `tieout init`;
+`tieout demo`; release packaging, CI and publishing.
 
-### Phase 1: Extracts + matching
-- File connector (CSV/XLSX) and SQL connector (SQLite for tests, then SQL Server / Postgres)
-- SELECT-only validation; reject anything else with a clear error
-- Hashing of query and data; column totals
-- `match()` returns MatchResult and gap
+Next: a Power BI connector (DAX via the REST `executeQueries` API or XMLA, treated as an
+extract like any other). Done when a measure value from a Power BI model can be
+reconciled against a SQL source.
 
-**Done when:** tests show an identical pair reconciles with gap 0, a non-SELECT query is rejected, and the same data always gives the same hash.
+Future work, out of scope for now: anchoring certificates and confirmer fingerprints
+somewhere the AI cannot write (see SECURITY.md, "Known limitations").
 
-### Phase 2: First five checks
-timing, status_filter, tax_basis (inc vs ex GST), duplicates, sign_credit (sign flips / credit notes).
+Later checks backlog: grain mismatch (line vs header), mapping/coding differences,
+missing records, manual journals/accruals, FX, scope (site/entity/intercompany),
+timezone cut-off (UTC vs local, e.g. AEST/AEDT).
 
-Build `fixtures/generate.py` first. It should generate a "dashboard vs Xero" pair with known injected issues, e.g.:
-- 58 invoices with appointment date in Oct and invoice date in Nov (timing, $26,900)
-- 3 voided invoices included on one side only (status, $600)
-- plus GST, duplicate and credit-note cases
+## 8. Working rules
 
-**Done when:** each check finds exactly its injected rows, wrong hypotheses return empty buckets, guardrails reject out-of-range parameters, and no row lands in two buckets.
-
-### Phase 3: Certificate
-- `certify()` enforces conservation and returns RECONCILED or OPEN
-- Canonical JSON plus certificate hash
-- HTML render that a CFO can read: headline status, gap, buckets with amounts and counts, assumptions (confirmed vs unconfirmed), source and query details, residual
-- CLI: `tieout confirm <assumption_id>`, `tieout cert show <id>`
-
-**Done when:** the fixture case produces a RECONCILED certificate with residual 0, and a certificate with unconfirmed assumptions is clearly flagged.
-
-### Phase 4: MCP server
-Python MCP SDK (FastMCP). Tools:
-- `list_connections`, `profile_source`, `run_query` (returns an extract summary, not raw credentials)
-- `get_rows` (paged, for the AI to inspect unmatched rows)
-- `match`, `list_checks`, `run_check`
-- `propose_assumption` (AI can propose; only the CLI confirms)
-- `certify`, `get_certificate`
-
-**Done when:** Claude Code, connected to the MCP server, can reconcile the fixture case end to end from a plain-English prompt, and every number in its explanation traces to the engine.
-
-### Phase 5: Power BI connector
-Run DAX queries against a semantic model (Power BI REST `executeQueries` or XMLA), treated as an extract like any other.
-
-**Done when:** a measure value from a Power BI model can be reconciled against a SQL source.
-
-### Phase 6 (later): Verification service
-Signs certificate hashes (Ed25519) and serves a verify page. It only ever receives hashes and summary metadata, never row data. Start with local key signing, then a minimal hosted registry.
-
-## 8. Later checks backlog
-Grain mismatch (line vs header), mapping/coding differences, missing records, manual journals/accruals, FX, rounding, scope (site/entity/intercompany), timezone cut-off (UTC vs local, e.g. AEST/AEDT).
+- Tests first; one commit per change, with a clear message.
+- Keep the suite passing on Python 3.11 and 3.14, and ruff clean.
+- Update SECURITY.md when a change affects what is caught or flagged; its tests check
+  it lists every human-only command and red-team attack.
+- This repo's `.claude/settings.json` denies the human-only commands and edits inside
+  `.tieout/` to Claude Code. Do not work around it.
 
 ## 9. Out of scope
-LLM calls, dashboards/analytics, writing to any source system, a desktop app UI, pre-built system-specific integrations (Cliniko, Xero etc.) beyond generic SQL/file/Power BI.
+
+LLM calls, dashboards/analytics, writing to any source system, a desktop app UI, any
+hosted or paid service, and pre-built system-specific integrations (Cliniko, Xero etc.)
+beyond generic SQL/file/Power BI.
 
 ## 10. Licence
+
 Apache-2.0 (see LICENSE).

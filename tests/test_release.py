@@ -37,6 +37,7 @@ def test_no_home_directory_paths_ship_in_the_repo():
         ROOT / "tests",
         ROOT / "fixtures",
         *ROOT.glob("*.md"),
+        ROOT / "docs",
         ROOT / "pyproject.toml",
     ]
     offenders = []
@@ -71,3 +72,15 @@ def test_publishing_uses_trusted_publishing_not_a_token():
     assert "name: pypi" in publish
     assert "password" not in publish and "secrets." not in publish
     assert "v${version}" in publish  # the tag must match the package version
+
+
+def test_the_brief_matches_the_release():
+    brief = " ".join((ROOT / "CLAUDE.md").read_text(encoding="utf-8").split())
+
+    assert "Apache-2.0" in brief
+    # "paid" may appear only where the brief says there is no such service.
+    assert brief.count("paid") == brief.count("hosted or paid service")
+    assert "`tieout`" in brief and "tieout-mcp" in brief
+    assert "recon_engine" not in brief and ".recon/" not in brief.replace("~/.recon/keys", "")
+    assert (ROOT / "docs" / "design" / "BACKLOG_4B.md").is_file()
+    assert not (ROOT / "BACKLOG_4B.md").exists()
