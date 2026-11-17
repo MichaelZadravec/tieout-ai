@@ -1,0 +1,59 @@
+name: Publish to PyPI
+
+# Runs when a GitHub release is published. Uses PyPI trusted publishing: no API
+# token is stored anywhere; PyPI trusts this workflow, in this repository, through
+# the `pypi` environment. See CONTRIBUTING.md ("Releasing") for the one-time setup.
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build and check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.14"
+
+      - name: The release tag must match the package version
+        run: |
+          version=$(uv version --short)
+          if [ "${GITHUB_REF_NAME}" != "v${version}" ]; then
+            echo "Release tag ${GITHUB_REF_NAME} does not match package version v${version}"
+            exit 1
+          fi
+
+      - name: Build sdist and wheel
+        run: uv build
+
+      - name: The built wheel installs and the demo runs
+        run: uvx --from dist/*.whl tieout-ai demo --no-open
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  publish:
+    name: Publish
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/tieout-ai/
+    permissions:
+      id-token: write  # for trusted publishing; nothing else
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - uses: pypa/gh-action-pypi-publish@release/v1

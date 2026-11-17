@@ -60,3 +60,14 @@ def test_ci_covers_three_operating_systems_and_both_pythons():
     assert 'python: ["3.11", "3.14"]' in ci
     assert "uv run pytest" in ci
     assert "uv sync --locked" in ci
+
+
+def test_publishing_uses_trusted_publishing_not_a_token():
+    publish = (ROOT / ".github" / "workflows" / "publish.yml").read_text(encoding="utf-8")
+
+    assert "types: [published]" in publish
+    assert "pypa/gh-action-pypi-publish@release/v1" in publish
+    assert "id-token: write" in publish
+    assert "name: pypi" in publish
+    assert "password" not in publish and "secrets." not in publish
+    assert "v${version}" in publish  # the tag must match the package version
