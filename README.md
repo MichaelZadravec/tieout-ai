@@ -5,6 +5,8 @@ and if not, explains every dollar of the difference with evidence rows.
 AI agents call it through an MCP server; the engine itself contains no LLM.
 
 See [CLAUDE.md](CLAUDE.md) for the full build brief.
+See [SECURITY.md](SECURITY.md) for the threat model, what the engine catches and flags,
+and red-team results including what is still open.
 
 ## Development
 
