@@ -11,9 +11,9 @@ from pathlib import Path
 import pytest
 from support import fixture_extracts, plan_for, signer
 
-from recon_engine.certify import _UNHASHED
-from recon_engine.hashing import canonical_json, sha256_hex
-from recon_engine.session import CertificateError, Session, Workspace
+from tieout_ai.certify import _UNHASHED
+from tieout_ai.hashing import canonical_json, sha256_hex
+from tieout_ai.session import CertificateError, Session, Workspace
 
 LEGACY = Path(__file__).parent / "data" / "certificate_v0_pre_4b.json"
 
@@ -133,7 +133,7 @@ def test_a_bucket_citing_an_unlisted_assumption_is_refused(tmp_path):
 
 
 def test_the_earlier_certificate_still_loads_but_says_its_confirmations_are_unsigned(tmp_path):
-    from recon_engine.certify import confirmation_status
+    from tieout_ai.certify import confirmation_status
 
     workspace = Workspace(tmp_path)
     workspace.certificate_dir.mkdir(parents=True)
@@ -149,7 +149,7 @@ def test_the_earlier_certificate_still_loads_but_says_its_confirmations_are_unsi
 
 
 def test_a_signed_certificate_reports_verified_confirmations(tmp_path):
-    from recon_engine.certify import confirmation_status
+    from tieout_ai.certify import confirmation_status
 
     cert = issue(tmp_path, "clean", confirm=True)
     loaded = Workspace(tmp_path).load_certificate(cert.id)
@@ -161,8 +161,8 @@ def test_a_signed_certificate_reports_verified_confirmations(tmp_path):
 def test_get_certificate_and_cert_show_report_unverifiable_confirmations(tmp_path):
     from typer.testing import CliRunner
 
-    from recon_engine.cli import app
-    from recon_engine.service import ReconService
+    from tieout_ai.cli import app
+    from tieout_ai.service import ReconService
 
     workspace = Workspace(tmp_path)
     workspace.certificate_dir.mkdir(parents=True)

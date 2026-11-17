@@ -1,0 +1,240 @@
+"""Local state: the workspace on disk, and one reconciliation in progress.
+
+A Workspace is a directory (default `.recon/`, or $RECON_HOME) holding the
+connections (with their credentials), the assumption store and issued
+certificates. A Session is one reconciliation: two extracts, a MatchSpec, the
+checks run so far, and certification.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+from pathlib import Path
+from typing import Any
+
+from tieout_ai.assumptions import AssumptionStore
+from tieout_ai.certify import (
+    SignOff,
+    certificate_problems,
+    certify,
+    check_sign_off,
+    sign_off_record,
+    verify_certificate_document,
+)
+from tieout_ai.checks import CheckContext, ProposedBy, get_check
+from tieout_ai.checks.base import Side
+from tieout_ai.connections import ConnectionStore
+from tieout_ai.match import match
+from tieout_ai.models import (
+    Assumption,
+    Bucket,
+    Certificate,
+    ExtractData,
+    MatchSpec,
+    QueryFilter,
+)
+from tieout_ai.signing import Signer, load_trusted_key
+
+
+class CertificateError(Exception):
+    """A certificate is missing or has been altered."""
+
+
+def default_home() -> Path:
+    return Path(os.environ.get("RECON_HOME") or ".recon")
+
+
+class Workspace:
+    def __init__(self, root: Path | None = None) -> None:
+        self.root = root or default_home()
+        self.assumptions = AssumptionStore(self.root / "assumptions.json")
+        self.connections = ConnectionStore(self.root / "connections.json")
+
+    @property
+    def certificate_dir(self) -> Path:
+        return self.root / "certificates"
+
+    def save_certificate(self, cert: Certificate) -> Path:
+        self.certificate_dir.mkdir(parents=True, exist_ok=True)
+        path = self.certificate_dir / f"{cert.id}.json"
+        path.write_text(cert.model_dump_json(indent=2) + "\n", encoding="utf-8", newline="\n")
+        return path
+
+    def load_certificate(self, cert_id: str) -> Certificate:
+        path = self.certificate_dir / f"{cert_id}.json"
+        if not path.is_file():
+            raise CertificateError(f"No certificate '{cert_id}' in {self.root}")
+        document = json.loads(path.read_text(encoding="utf-8"))
+        if not verify_certificate_document(document) or document.get("id") != cert_id:
+            raise CertificateError(f"Certificate '{cert_id}' does not match its hash")
+        cert = Certificate.model_validate(document)
+        problems = certificate_problems(cert, load_trusted_key())
+        if problems:
+            more = f" (and {len(problems) - 1} more)" if len(problems) > 1 else ""
+            raise CertificateError(
+                f"Certificate '{cert_id}' is not self-consistent: {problems[0]}{more}"
+            )
+        return cert
+
+    def sign_off_path(self, cert_id: str) -> Path:
+        # Kept apart from the certificate: adding it would change the hash it signs.
+        return self.certificate_dir / "signoffs" / f"{cert_id}.json"
+
+    def save_sign_off(self, cert: Certificate, signer: Signer) -> Path:
+        """Record a person's sign-off. Human-only: the CLI calls this, never the MCP server."""
+        record = sign_off_record(cert)
+        path = self.sign_off_path(cert.id)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        payload = {**record, "signature": signer.sign_record("certificate", record)}
+        path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8", newline="\n")
+        return path
+
+    def sign_off(self, cert: Certificate) -> SignOff:
+        path = self.sign_off_path(cert.id)
+        stored = json.loads(path.read_text(encoding="utf-8")) if path.is_file() else None
+        return check_sign_off(cert, stored, load_trusted_key())
+
+    def list_certificates(self) -> list[str]:
+        if not self.certificate_dir.is_dir():
+            return []
+        return sorted(p.stem for p in self.certificate_dir.glob("cert_*.json"))
+
+
+class Session:
+    """One reconciliation. Checks run in order and never reclaim earlier claims.
+
+    Each certificate issued by a session supersedes the one it issued before.
+
+    Every way a SQL extract's query leaves rows out becomes an assumption of the
+    reconciliation as soon as it starts: a filter only to the reconciliation
+    period is a normal one, anything else is elevated. Either way a person must
+    confirm it before the certificate can be RECONCILED.
+    """
+
+    def __init__(
+        self,
+        workspace: Workspace,
+        a: ExtractData,
+        b: ExtractData,
+        spec: MatchSpec,
+        proposed_by: ProposedBy = "ai",
+    ) -> None:
+        self.workspace = workspace
+        self.context = CheckContext(
+            a=a, b=b, spec=spec, result=match(a, b, spec), assumptions=workspace.assumptions
+        )
+        self.buckets: list[Bucket] = []
+        self.assumption_ids: list[str] = []
+        self.last_certificate: str | None = None
+        for side in ("a", "b"):
+            for query_filter in self.context.data(side).extract.query_filters:
+                self._propose_filter(side, query_filter, proposed_by)
+            for column, sql in self.context.data(side).extract.computed_columns.items():
+                self._propose_computed(side, column, sql, proposed_by)
+
+    def _propose_computed(self, side: Side, column: str, sql: str, proposed_by: ProposedBy) -> None:
+        extract = self.context.data(side).extract
+        name = self.context.name(side)
+        role = (
+            "key column"
+            if column in self.context.key_columns(side)
+            else "amount column"
+            if column == self.context.amount_column(side)
+            else "date column"
+            if column == self.context.date_column(side)
+            else "column"
+        )
+        self.propose_assumption(
+            "query.computed_column",
+            {
+                "connection": extract.connection_id,
+                "query_hash": extract.query_hash,
+                "column": column,
+                "sql": sql,
+            },
+            f"The {name} query computes its {role} '{column}' as {sql} instead of reading "
+            "it from the source.",
+            proposed_by,
+            elevated_reason=f"loosens the default: the {name} query computes the {role} "
+            f"'{column}' ({sql})",
+        )
+
+    def _propose_filter(
+        self, side: Side, query_filter: QueryFilter, proposed_by: ProposedBy
+    ) -> None:
+        extract = self.context.data(side).extract
+        name = self.context.name(side)
+        period = self.context.spec.period
+        to_period = (
+            query_filter.clause == "WHERE"
+            and period is not None
+            and query_filter.date_column is not None
+            and query_filter.date_column == self.context.date_column(side)
+            and (query_filter.earliest is None or query_filter.earliest <= period.start)
+            and (query_filter.latest is None or query_filter.latest >= period.end)
+        )
+        what = {
+            "WHERE": f"keeps only rows where {query_filter.plain}",
+            "HAVING": f"keeps only groups where {query_filter.plain}",
+        }.get(query_filter.clause, query_filter.plain)
+        description = f"The {name} query {what}. SQL: {query_filter.sql}"
+        if to_period:
+            description += " (this only limits it to the reconciliation period)"
+        self.propose_assumption(
+            "query.filter",
+            {
+                "connection": extract.connection_id,
+                "query_hash": extract.query_hash,
+                "clause": query_filter.clause,
+                "sql": query_filter.sql,
+            },
+            description,
+            proposed_by,
+            elevated_reason=None
+            if to_period
+            else f"loosens the default: the {name} query leaves out rows beyond the "
+            f"reconciliation period ({query_filter.clause} {query_filter.sql})",
+        )
+
+    def run_check(
+        self, name: str, params: dict[str, Any], proposed_by: ProposedBy = "ai"
+    ) -> Bucket:
+        bucket = get_check(name).run(self.context, params, proposed_by)
+        self.context = self.context.with_claimed(bucket.item_ids)
+        self.buckets.append(bucket)
+        return bucket
+
+    def propose_assumption(
+        self,
+        parameter: str,
+        value: Any,
+        description: str,
+        proposed_by: ProposedBy = "ai",
+        elevated_reason: str | None = None,
+    ) -> Assumption:
+        """An assumption about the reconciliation as a whole (scope, filters, sources)."""
+        assumption = self.workspace.assumptions.propose(
+            Assumption.propose(
+                parameter, value, description, proposed_by, elevated_reason=elevated_reason
+            )
+        )
+        if assumption.id not in self.assumption_ids:
+            self.assumption_ids.append(assumption.id)
+        return assumption
+
+    def certify(self, supersedes: str | None = None) -> Certificate:
+        if supersedes is None:
+            supersedes = self.last_certificate
+        else:
+            self.workspace.load_certificate(supersedes)  # must exist and verify
+        cert = certify(
+            self.context,
+            self.buckets,
+            supersedes=supersedes,
+            extra_assumption_ids=self.assumption_ids,
+            confirmer_key=load_trusted_key(),
+        )
+        self.workspace.save_certificate(cert)
+        self.last_certificate = cert.id
+        return cert

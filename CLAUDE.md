@@ -1,6 +1,7 @@
 # Reconciliation Engine — Build Brief
 
-> Working name: `recon_engine` (rename later). This file is the brief for Claude Code.
+> Product: **AI TieOut**. Package `tieout-ai` (import `tieout_ai`), CLI `tieout` (`recon` is a
+> temporary alias), MCP server `tieout-mcp`. This file is the brief for Claude Code.
 > Work phase by phase. Write tests first. Stop at the end of each phase for review.
 
 ## 1. What we're building
@@ -54,9 +55,9 @@ Runs on the customer's machine or in their cloud. GitHub is only where the code 
 ## 4. Repo structure
 
 ```
-recon_engine/
+tieout_ai/
   pyproject.toml          # uv, Python 3.11+
-  src/recon_engine/
+  src/tieout_ai/
     models.py             # pydantic models (section 5)
     hashing.py            # canonical JSON + data hashing
     connectors/
@@ -129,7 +130,7 @@ Build `fixtures/generate.py` first. It should generate a "dashboard vs Xero" pai
 - `certify()` enforces conservation and returns RECONCILED or OPEN
 - Canonical JSON plus certificate hash
 - HTML render that a CFO can read: headline status, gap, buckets with amounts and counts, assumptions (confirmed vs unconfirmed), source and query details, residual
-- CLI: `recon confirm <assumption_id>`, `recon cert show <id>`
+- CLI: `tieout confirm <assumption_id>`, `tieout cert show <id>`
 
 **Done when:** the fixture case produces a RECONCILED certificate with residual 0, and a certificate with unconfirmed assumptions is clearly flagged.
 

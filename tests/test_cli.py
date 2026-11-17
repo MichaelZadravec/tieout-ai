@@ -5,9 +5,9 @@ import pytest
 from support import PASSPHRASE, fixture_extracts, plan_for, signer
 from typer.testing import CliRunner
 
-from recon_engine import cli
-from recon_engine.cli import app
-from recon_engine.session import CertificateError, Session, Workspace
+from tieout_ai import cli
+from tieout_ai.cli import app
+from tieout_ai.session import CertificateError, Session, Workspace
 
 runner = CliRunner()
 
@@ -187,7 +187,7 @@ def test_the_null_device_is_not_a_person(home, cert):
     target = cert.unconfirmed_assumptions[0]
     with open(os.devnull) as null:
         result = subprocess.run(
-            [sys.executable, "-m", "recon_engine.cli", "--home", str(home), "confirm", target],
+            [sys.executable, "-m", "tieout_ai.cli", "--home", str(home), "confirm", target],
             stdin=null,
             capture_output=True,
             text=True,

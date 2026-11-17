@@ -7,12 +7,12 @@ import pytest
 from support import CONFIRMER, PASSPHRASE, fixture_extracts, plan_for, signer
 from typer.testing import CliRunner
 
-from recon_engine import cli
-from recon_engine.cli import app
-from recon_engine.models import CertificateStatus
-from recon_engine.render import render_html
-from recon_engine.session import Session, Workspace
-from recon_engine.signing import (
+from tieout_ai import cli
+from tieout_ai.cli import app
+from tieout_ai.models import CertificateStatus
+from tieout_ai.render import render_html
+from tieout_ai.session import Session, Workspace
+from tieout_ai.signing import (
     PRIVATE_FILE,
     Signer,
     SigningError,
@@ -155,7 +155,7 @@ def test_confirm_needs_a_key(session, interactive, tmp_path, monkeypatch):
     result = recon(tmp_path, "confirm", target, input=f"{CODE}\n{PASSPHRASE}\n")
 
     assert result.exit_code == 1
-    assert "recon keys init" in result.output
+    assert "tieout keys init" in result.output
 
 
 def test_reconfirming_repairs_a_hand_edited_confirmation(session, interactive, tmp_path):

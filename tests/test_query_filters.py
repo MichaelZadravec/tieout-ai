@@ -3,14 +3,14 @@
 import pytest
 from support import INVOICES, registered_sqlite, signer
 
-from recon_engine.connectors.base import UnsafeQueryError
-from recon_engine.connectors.sql import SQLConnector, describe_filters, validate_select
-from recon_engine.models import (
+from tieout_ai.connectors.base import UnsafeQueryError
+from tieout_ai.connectors.sql import SQLConnector, describe_filters, validate_select
+from tieout_ai.models import (
     CertificateStatus,
     MatchSpec,
     Period,
 )
-from recon_engine.session import Session, Workspace
+from tieout_ai.session import Session, Workspace
 
 OCTOBER = Period(start="2026-10-01", end="2026-10-31")
 ALL = "SELECT invoice_id, invoice_date, amount, status FROM invoices"
@@ -115,7 +115,7 @@ def test_a_status_filter_is_an_elevated_assumption_that_blocks_reconciled(tmp_pa
 
 
 def test_the_extract_and_run_query_report_the_filters(tmp_path, ledger):
-    from recon_engine.service import ReconService
+    from tieout_ai.service import ReconService
 
     session = session_for(tmp_path, ledger, f"{ALL} WHERE status <> 'PAID'")
     assert [f.sql for f in session.context.a.extract.query_filters] == ["status <> 'PAID'"]

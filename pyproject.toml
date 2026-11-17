@@ -1,7 +1,7 @@
 [project]
-name = "recon-engine"
+name = "tieout-ai"
 version = "0.1.0"
-description = "Deterministic reconciliation engine: the AI proposes, the engine proves."
+description = "AI TieOut: prove two business numbers agree. The AI proposes, code proves, people confirm."
 readme = "README.md"
 license-files = ["LICENSE"]
 requires-python = ">=3.11"
@@ -18,8 +18,13 @@ dependencies = [
 ]
 
 [project.scripts]
-recon = "recon_engine.cli:app"
-recon-mcp = "recon_engine.mcp_server:main"
+tieout = "tieout_ai.cli:app"
+# `uvx tieout-ai ...` runs the command named after the package.
+tieout-ai = "tieout_ai.cli:app"
+tieout-mcp = "tieout_ai.mcp_server:main"
+# Earlier names, kept as aliases for existing setups.
+recon = "tieout_ai.cli:app"
+recon-mcp = "tieout_ai.mcp_server:main"
 
 [dependency-groups]
 dev = [
@@ -45,4 +50,4 @@ select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF"]
 
 [tool.ruff.lint.per-file-ignores]
 # HTML/CSS template text; wrapping it would hurt readability of the markup.
-"src/recon_engine/render.py" = ["E501"]
+"src/tieout_ai/render.py" = ["E501"]

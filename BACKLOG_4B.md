@@ -10,14 +10,14 @@
 - Keep all existing tests passing on Python 3.11 and 3.14. Lint clean.
 - Update fixtures, manifests and the README as behaviour changes.
 - **Stop for review after Part A, and again after Part B.**
-- At the end, reinstall the trial tool: `uv tool install --reinstall --force --python 3.14 C:\dev\recon_engine`
+- At the end, reinstall the trial tool: `uv tool install --reinstall --force --python 3.14 C:\dev\tieout_ai`
 
 ---
 
 ## Part A — Correctness and guardrails
 
 ### A1. Bug: the server caches assumptions (do this first)
-**Found:** confirmations made with `recon confirm` while the MCP server was running were ignored by `certify`. The server loaded the assumption store once at startup.
+**Found:** confirmations made with `tieout confirm` while the MCP server was running were ignored by `certify`. The server loaded the assumption store once at startup.
 **Fix:** every read of assumptions (certify, get_certificate, listing) reloads from disk. Treat the on-disk store as the only source of truth. Check whether any other store (connections, certificates) has the same caching problem and fix it the same way.
 **Done when:** a test starts the server, confirms an assumption through the CLI path, then certifies, and gets RECONCILED without a restart.
 
@@ -42,7 +42,7 @@
 - a timing window wider than the check's default
 - query filters beyond the period (B2)
 
-Elevated assumptions are shown separately at the top of the HTML certificate and in `recon assumptions list`, with a one-line reason ("loosens the default: ignores columns load_id, loaded_at").
+Elevated assumptions are shown separately at the top of the HTML certificate and in `tieout assumptions list`, with a one-line reason ("loosens the default: ignores columns load_id, loaded_at").
 **Done when:** the messy fixture's status-variant and compare_columns assumptions show as elevated in the HTML and CLI.
 
 ### A5. New check: rounding tolerance
@@ -62,9 +62,9 @@ Elevated assumptions are shown separately at the top of the HTML certificate and
 ### B1. File sources: hash at registration
 **Found:** the AI could edit a CSV before the engine reads it, and the extract hash would just fingerprint the edited file.
 **Fix:**
-- `recon connections add-file` records the file's hash, size and modified time at registration.
+- `tieout connections add-file` records the file's hash, size and modified time at registration.
 - Every extract re-checks. If the file has changed, the extract is marked `changed_since_registration` and the certificate can't be better than OPEN. Show a clear warning naming the file.
-- New command `recon connections refresh <id>`: re-registers the file. It is interactive-only (TTY plus retyped code, same as confirm), and records who refreshed it and when.
+- New command `tieout connections refresh <id>`: re-registers the file. It is interactive-only (TTY plus retyped code, same as confirm), and records who refreshed it and when.
 **Done when:** a test edits a registered CSV and the certificate is OPEN with the warning; after a refresh it can be RECONCILED again.
 
 ### B2. Query filters become assumptions
@@ -78,25 +78,25 @@ Elevated assumptions are shown separately at the top of the HTML certificate and
 ### B3. Signed confirmations
 **Found:** the deny rules only stop Claude Code's tools. A shell command could write `"confirmed": true` straight into `.recon/assumptions.json`.
 **Fix:**
-- `recon keys init` (interactive only): creates an Ed25519 keypair. The private key is encrypted with a passphrase the person sets and stored outside the workspace (user profile, e.g. `%APPDATA%\recon\keys\`). Use the `cryptography` package.
-- `recon confirm` asks for the passphrase and signs: assumption ID + assumption content hash + confirmer name + timestamp.
+- `tieout keys init` (interactive only): creates an Ed25519 keypair. The private key is encrypted with a passphrase the person sets and stored outside the workspace (user profile, e.g. `%APPDATA%\recon\keys\`). Use the `cryptography` package.
+- `tieout confirm` asks for the passphrase and signs: assumption ID + assumption content hash + confirmer name + timestamp.
 - `certify` verifies every confirmation against the public key. A missing, invalid or mismatched signature counts as unconfirmed, and the certificate lists it as "confirmation could not be verified".
 - The certificate records the public key fingerprint and the confirmer's name.
 - Editing an assumption's text after confirmation invalidates the signature (content hash).
 **Done when:** a test that hand-edits `"confirmed": true` into the store is treated as unconfirmed; a properly signed confirm still gives RECONCILED.
 
-### B4. `recon init`
+### B4. `tieout init`
 **Found:** customer setup took ~8 manual steps and broke on PATH twice.
-**Fix:** `recon init` in an empty folder, idempotent:
+**Fix:** `tieout init` in an empty folder, idempotent:
 - creates the `.recon/` workspace
-- writes `.mcp.json` (`"command": "recon-mcp"`, `--home .recon`)
+- writes `.mcp.json` (`"command": "tieout-mcp"`, `--home .recon`)
 - writes `.claude/settings.json` with:
   - **allow:** `mcp__recon__*`
-  - **deny:** `recon confirm`, `recon keys`, `recon connections` (all subcommands, since refresh/add must be human) in both Bash and PowerShell; Edit on `.recon/**`
-- checks whether `recon` / `recon-mcp` are on PATH; if not, prints the exact fix (`uv tool update-shell`, then open a new terminal)
-- runs `recon keys init` if no key exists yet
+  - **deny:** `tieout confirm`, `tieout keys`, `tieout connections` (all subcommands, since refresh/add must be human) in both Bash and PowerShell; Edit on `.recon/**`
+- checks whether `recon` / `tieout-mcp` are on PATH; if not, prints the exact fix (`uv tool update-shell`, then open a new terminal)
+- runs `tieout keys init` if no key exists yet
 - prints a short "next steps" list (add connections, open Claude Code here, confirm in your own terminal)
-**Done when:** running `recon init` in an empty folder produces a working trial folder equivalent to C:\dev\recon_trial, and running it twice changes nothing.
+**Done when:** running `tieout init` in an empty folder produces a working trial folder equivalent to C:\dev\recon_trial, and running it twice changes nothing.
 
 **→ Stop for review after Part B.**
 

@@ -4,10 +4,10 @@ import pytest
 from support import FIXTURE_DATA, PASSPHRASE
 from typer.testing import CliRunner
 
-from recon_engine import cli
-from recon_engine.cli import app
-from recon_engine.connections import ConnectionStore
-from recon_engine.models import Connection, ConnectionType
+from tieout_ai import cli
+from tieout_ai.cli import app
+from tieout_ai.connections import ConnectionStore
+from tieout_ai.models import Connection, ConnectionType
 
 runner = CliRunner()
 

@@ -7,12 +7,12 @@ from pathlib import Path
 from support import FIXTURE_MATCH_ARGS, fixture_context, fixture_workspace, plan_for
 from typer.testing import CliRunner
 
-from recon_engine.certify import certify
-from recon_engine.checks import run_checks
-from recon_engine.cli import app
-from recon_engine.models import Certificate
-from recon_engine.render import render_html
-from recon_engine.service import ReconService
+from tieout_ai.certify import certify
+from tieout_ai.checks import run_checks
+from tieout_ai.cli import app
+from tieout_ai.models import Certificate
+from tieout_ai.render import render_html
+from tieout_ai.service import ReconService
 
 LEGACY = Path(__file__).parent / "data" / "certificate_v0_pre_4b.json"
 

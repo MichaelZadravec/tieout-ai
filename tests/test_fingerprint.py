@@ -6,10 +6,10 @@ from pathlib import Path
 from support import CONFIRMER, fixture_extracts, plan_for, signer
 from typer.testing import CliRunner
 
-from recon_engine.cli import app
-from recon_engine.render import render_html
-from recon_engine.service import ReconService
-from recon_engine.session import Session, Workspace
+from tieout_ai.cli import app
+from tieout_ai.render import render_html
+from tieout_ai.service import ReconService
+from tieout_ai.session import Session, Workspace
 
 LEGACY = Path(__file__).parent / "data" / "certificate_v0_pre_4b.json"
 runner = CliRunner()
@@ -37,7 +37,7 @@ def test_keys_fingerprint_without_a_key_says_so(tmp_path, monkeypatch):
     result = runner.invoke(app, ["keys", "fingerprint"])
 
     assert result.exit_code == 1
-    assert "recon keys init" in result.output
+    assert "tieout keys init" in result.output
 
 
 def test_the_html_shows_the_expected_fingerprint_before_anything_else(tmp_path):
@@ -47,7 +47,7 @@ def test_the_html_shows_the_expected_fingerprint_before_anything_else(tmp_path):
 
     assert cert.confirmer_key_fingerprint in html[panel : html.index("How the gap is explained")]
     assert panel < html.index('class="tiles"')
-    assert "recon keys fingerprint" in html
+    assert "tieout keys fingerprint" in html
     assert CONFIRMER in html[panel : panel + 600]
 
 
@@ -57,7 +57,7 @@ def test_cert_show_leads_with_the_expected_fingerprint(tmp_path):
     head = "\n".join(shown.output.splitlines()[:6])
 
     assert f"Expected confirmer key: {cert.confirmer_key_fingerprint} ({CONFIRMER})" in head
-    assert "recon keys fingerprint" in head
+    assert "tieout keys fingerprint" in head
 
 
 def test_get_certificate_reports_the_fingerprint(tmp_path):
@@ -70,7 +70,7 @@ def test_get_certificate_reports_the_fingerprint(tmp_path):
 
 def test_a_certificate_without_a_recorded_key_says_so(tmp_path):
     doc = json.loads(LEGACY.read_text(encoding="utf-8"))
-    from recon_engine.models import Certificate
+    from tieout_ai.models import Certificate
 
     html = render_html(Certificate.model_validate(doc))
 

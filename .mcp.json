@@ -1,8 +1,11 @@
 {
   "mcpServers": {
-    "recon": {
+    "tieout": {
       "command": "uv",
-      "args": ["run", "recon-mcp"]
+      "args": [
+        "run",
+        "tieout-mcp"
+      ]
     }
   }
 }

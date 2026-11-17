@@ -12,12 +12,12 @@ import pytest
 from support import CONFIRMER, INVOICES, PASSPHRASE, registered_sqlite, signed
 from typer.testing import CliRunner
 
-from recon_engine import cli
-from recon_engine.cli import app
-from recon_engine.connectors.sql import SQLConnector, computed_columns, validate_select
-from recon_engine.models import CertificateStatus, Connection, ConnectionType, MatchSpec
-from recon_engine.service import ReconService
-from recon_engine.session import Session, Workspace
+from tieout_ai import cli
+from tieout_ai.cli import app
+from tieout_ai.connectors.sql import SQLConnector, computed_columns, validate_select
+from tieout_ai.models import CertificateStatus, Connection, ConnectionType, MatchSpec
+from tieout_ai.service import ReconService
+from tieout_ai.session import Session, Workspace
 
 CODE = "K7Q2PX"
 ALL = "SELECT invoice_id, invoice_date, amount, status FROM invoices"
@@ -175,7 +175,7 @@ def test_a_sqlite_connection_without_a_hash_is_flagged(tmp_path, unhashed_ledger
 
 
 def test_a_server_database_has_no_file_to_hash(tmp_path):
-    from recon_engine.connectors.sql import sqlite_file
+    from tieout_ai.connectors.sql import sqlite_file
 
     assert sqlite_file("postgresql://reader@db.example/finance") is None
     assert sqlite_file("sqlite:///:memory:") is None

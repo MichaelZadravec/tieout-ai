@@ -1,5 +1,5 @@
-import recon_engine
+import tieout_ai
 
 
 def test_package_exposes_version():
-    assert recon_engine.__version__
+    assert tieout_ai.__version__

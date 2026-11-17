@@ -4,7 +4,7 @@ from decimal import Decimal
 import pandas as pd
 import pytest
 
-from recon_engine.hashing import (
+from tieout_ai.hashing import (
     canonical_json,
     canonical_value,
     column_totals,

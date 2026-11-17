@@ -13,13 +13,13 @@ import pytest
 from support import CONFIRMER, FIXTURE_DATA, PASSPHRASE
 from typer.testing import CliRunner
 
-from recon_engine import cli
-from recon_engine.cli import app
-from recon_engine.connections import file_registration, sign_connection
-from recon_engine.models import Connection, ConnectionType
-from recon_engine.service import ReconService, ServiceError
-from recon_engine.session import Workspace
-from recon_engine.signing import Signer
+from tieout_ai import cli
+from tieout_ai.cli import app
+from tieout_ai.connections import file_registration, sign_connection
+from tieout_ai.models import Connection, ConnectionType
+from tieout_ai.service import ReconService, ServiceError
+from tieout_ai.session import Workspace
+from tieout_ai.signing import Signer
 
 CODE = "K7Q2PX"
 runner = CliRunner()

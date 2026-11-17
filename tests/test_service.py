@@ -7,9 +7,9 @@ from pathlib import Path
 import pytest
 from support import CLEAN_PLAN, FIXTURE_MATCH_ARGS, fixture_workspace, signed
 
-from recon_engine.connectors import UnsafeQueryError
-from recon_engine.models import Connection, ConnectionType
-from recon_engine.service import ReconService, ServiceError
+from tieout_ai.connectors import UnsafeQueryError
+from tieout_ai.models import Connection, ConnectionType
+from tieout_ai.service import ReconService, ServiceError
 
 
 @pytest.fixture
@@ -121,7 +121,7 @@ def test_full_reconciliation_through_the_service(service):
     assert cert["status"] == "PROVISIONAL"
     assert cert["residual"] == "0.00"
     assert cert["unconfirmed_assumptions"]
-    assert "recon confirm" in cert["next_step"]
+    assert "tieout confirm" in cert["next_step"]
     assert Path(cert["html_path"]).exists()
     assert Path(cert["json_path"]).exists()
 

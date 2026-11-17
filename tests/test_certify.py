@@ -7,13 +7,13 @@ from pathlib import Path
 import pytest
 from support import CLEAN_PLAN, fixture_context, make_extract, plan_for, signer
 
-from recon_engine import __version__
-from recon_engine.assumptions import AssumptionStore
-from recon_engine.certify import ConservationError, certify, verify_certificate
-from recon_engine.checks import CheckContext, get_check, run_checks
-from recon_engine.match import match
-from recon_engine.models import Assumption, Certificate, CertificateStatus, MatchSpec
-from recon_engine.session import CertificateError, Workspace
+from tieout_ai import __version__
+from tieout_ai.assumptions import AssumptionStore
+from tieout_ai.certify import ConservationError, certify, verify_certificate
+from tieout_ai.checks import CheckContext, get_check, run_checks
+from tieout_ai.match import match
+from tieout_ai.models import Assumption, Certificate, CertificateStatus, MatchSpec
+from tieout_ai.session import CertificateError, Workspace
 
 NOW = datetime(2026, 11, 4, 12, 0, tzinfo=UTC)
 

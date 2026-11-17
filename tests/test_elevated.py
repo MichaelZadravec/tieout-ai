@@ -6,13 +6,13 @@ import pytest
 from support import fixture_context, fixture_extracts, make_extract, plan_for
 from typer.testing import CliRunner
 
-from recon_engine.certify import certify
-from recon_engine.checks import CheckContext, get_check, run_checks
-from recon_engine.cli import app
-from recon_engine.match import match
-from recon_engine.models import MatchSpec, Period
-from recon_engine.render import render_html
-from recon_engine.session import Session, Workspace
+from tieout_ai.certify import certify
+from tieout_ai.checks import CheckContext, get_check, run_checks
+from tieout_ai.cli import app
+from tieout_ai.match import match
+from tieout_ai.models import MatchSpec, Period
+from tieout_ai.render import render_html
+from tieout_ai.session import Session, Workspace
 
 
 def assumptions_of(ctx, bucket):
@@ -119,7 +119,7 @@ def test_a_wide_window_is_not_elevated_when_every_actual_lag_is_short():
 
 
 def test_the_timing_window_keeps_its_hard_maximum_of_one_period():
-    from recon_engine.checks import CheckParameterError
+    from tieout_ai.checks import CheckParameterError
 
     with pytest.raises(CheckParameterError, match="at most one period"):
         get_check("timing").run(timing_ctx(4), {"max_shift_days": 32})
@@ -179,7 +179,7 @@ def test_cli_lists_elevated_assumptions_separately_with_reasons(messy_cert):
 def test_run_check_reports_elevation_to_the_ai(tmp_path):
     from support import FIXTURE_MATCH_ARGS, fixture_workspace
 
-    from recon_engine.service import ReconService
+    from tieout_ai.service import ReconService
 
     service = ReconService(fixture_workspace(tmp_path, "messy"))
     a = service.run_query("dashboard")["extract_id"]

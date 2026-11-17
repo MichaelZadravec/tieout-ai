@@ -1,7 +1,7 @@
 import pytest
 
-from recon_engine.connectors.base import UnsafeQueryError
-from recon_engine.connectors.sql import validate_select
+from tieout_ai.connectors.base import UnsafeQueryError
+from tieout_ai.connectors.sql import validate_select
 
 
 @pytest.mark.parametrize(

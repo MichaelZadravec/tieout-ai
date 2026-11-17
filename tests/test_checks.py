@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from support import CLEAN_PLAN as PLAN
 from support import make_extract
 
-from recon_engine.checks import (
+from tieout_ai.checks import (
     Check,
     CheckContext,
     CheckError,
@@ -16,10 +16,10 @@ from recon_engine.checks import (
     register,
     run_checks,
 )
-from recon_engine.connectors.files import FileConnector
-from recon_engine.fixtures.generate import generate
-from recon_engine.match import match
-from recon_engine.models import Connection, ConnectionType, MatchSpec, Period
+from tieout_ai.connectors.files import FileConnector
+from tieout_ai.fixtures.generate import generate
+from tieout_ai.match import match
+from tieout_ai.models import Connection, ConnectionType, MatchSpec, Period
 
 OCTOBER = Period(start="2026-10-01", end="2026-10-31")
 

@@ -6,13 +6,13 @@ import pytest
 from support import fixture_context, make_extract, plan_for
 from typer.testing import CliRunner
 
-from recon_engine.certify import certify
-from recon_engine.checks import CheckContext, CheckParameterError, get_check, run_checks
-from recon_engine.cli import app
-from recon_engine.match import MatchError, match
-from recon_engine.models import MatchSpec, key_label, source_names
-from recon_engine.render import MINUS, render_html
-from recon_engine.session import Session, Workspace
+from tieout_ai.certify import certify
+from tieout_ai.checks import CheckContext, CheckParameterError, get_check, run_checks
+from tieout_ai.cli import app
+from tieout_ai.match import MatchError, match
+from tieout_ai.models import MatchSpec, key_label, source_names
+from tieout_ai.render import MINUS, render_html
+from tieout_ai.session import Session, Workspace
 
 SIDE_WORDING = re.compile(r"\b[Ss]ide [AB]\b|\bin [AB]\b|\([AB] (&minus;|" + MINUS + r"|-) [AB]\)")
 

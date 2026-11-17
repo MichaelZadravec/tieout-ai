@@ -1,4 +1,4 @@
-"""B4: `recon init` turns an empty folder into a working, locked-down trial folder."""
+"""B4: `tieout init` turns an empty folder into a working, locked-down trial folder."""
 
 import json
 
@@ -6,10 +6,10 @@ import pytest
 from support import CONFIRMER
 from typer.testing import CliRunner
 
-from recon_engine import cli
-from recon_engine.cli import app
-from recon_engine.project import DENIED_COMMANDS, init_folder
-from recon_engine.signing import load_trusted_key
+from tieout_ai import cli
+from tieout_ai.cli import app
+from tieout_ai.project import DENIED_COMMANDS, init_folder
+from tieout_ai.signing import load_trusted_key
 
 runner = CliRunner()
 
@@ -27,14 +27,19 @@ def test_init_writes_the_workspace_mcp_config_and_settings(tmp_path):
 
     assert (tmp_path / ".recon").is_dir()
     mcp = json.loads((tmp_path / ".mcp.json").read_text(encoding="utf-8"))
-    assert mcp == {"mcpServers": {"recon": {"command": "recon-mcp", "args": ["--home", ".recon"]}}}
+    assert mcp == {
+        "mcpServers": {"tieout": {"command": "tieout-mcp", "args": ["--home", ".recon"]}}
+    }
     settings = json.loads((tmp_path / ".claude" / "settings.json").read_text(encoding="utf-8"))
-    assert settings["permissions"]["allow"] == ["mcp__recon__*"]
+    assert settings["permissions"]["allow"] == ["mcp__tieout__*"]
     deny = settings["permissions"]["deny"]
-    for command in ("recon confirm", "recon keys", "recon connections"):
-        for tool in ("Bash", "PowerShell"):
-            assert f"{tool}({command}*)" in deny
-            assert f"{tool}(*{command}*)" in deny
+    # The new names and the earlier `recon` alias are all denied.
+    for name in ("tieout", "tieout-ai", "recon"):
+        for command in DENIED_COMMANDS:
+            for tool in ("Bash", "PowerShell"):
+                assert f"{tool}({name} {command}*)" in deny
+                assert f"{tool}(*{name} {command}*)" in deny
+    assert "Bash(uvx tieout-ai cert sign*)" in deny
     assert "Edit(.recon/**)" in deny
     assert "Edit(/.recon/**)" in deny
 
@@ -67,10 +72,10 @@ def test_init_keeps_whatever_the_folder_already_has(tmp_path):
     settings = json.loads((tmp_path / ".claude" / "settings.json").read_text(encoding="utf-8"))
     mcp = json.loads((tmp_path / ".mcp.json").read_text(encoding="utf-8"))
     assert settings["model"] == "x"
-    assert settings["permissions"]["allow"] == ["Bash(ls)", "mcp__recon__*"]
+    assert settings["permissions"]["allow"] == ["Bash(ls)", "mcp__tieout__*"]
     assert settings["permissions"]["deny"][0] == "Bash(rm*)"
-    assert "Bash(recon confirm*)" in settings["permissions"]["deny"]
-    assert set(mcp["mcpServers"]) == {"other", "recon"}
+    assert "Bash(tieout confirm*)" in settings["permissions"]["deny"]
+    assert set(mcp["mcpServers"]) == {"other", "tieout"}
 
 
 def test_init_leaves_an_existing_workspace_alone(tmp_path):
@@ -100,9 +105,9 @@ def test_cli_init_prints_next_steps(tmp_path, monkeypatch):
     result = recon_init(tmp_path)
 
     assert "Next steps" in result.output
-    assert "recon connections add-file" in result.output
+    assert "tieout connections add-file" in result.output
     assert "Open Claude Code in" in result.output
-    assert "recon confirm" in result.output
+    assert "tieout confirm" in result.output
     assert f"Confirmer key: {CONFIRMER}" in result.output  # the test key already exists
 
 
@@ -120,7 +125,7 @@ def test_cli_init_without_a_terminal_explains_how_to_make_the_key(tmp_path, monk
     result = recon_init(tmp_path / "trial")
 
     assert result.exit_code == 0, result.output
-    assert 'recon keys init --name "Your Name"' in result.output
+    assert 'tieout keys init --name "Your Name"' in result.output
     assert load_trusted_key() is None
 
 
@@ -128,9 +133,9 @@ def test_cli_init_without_a_terminal_explains_how_to_make_the_key(tmp_path, monk
 def test_the_folder_init_makes_runs_the_server(tmp_path, run):
     from support import FIXTURE_DATA, registered_file
 
-    from recon_engine.mcp_server import build_server
-    from recon_engine.service import ReconService
-    from recon_engine.session import Workspace
+    from tieout_ai.mcp_server import build_server
+    from tieout_ai.service import ReconService
+    from tieout_ai.session import Workspace
 
     for _ in range(run):
         init_folder(tmp_path)

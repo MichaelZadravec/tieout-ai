@@ -1,4 +1,4 @@
-"""`recon demo`: both fixture pairs end to end in a temp folder, with a throwaway key."""
+"""`tieout demo`: both fixture pairs end to end in a temp folder, with a throwaway key."""
 
 import os
 from decimal import Decimal
@@ -6,11 +6,11 @@ from decimal import Decimal
 from support import CLEAN_PLAN
 from typer.testing import CliRunner
 
-from recon_engine import cli
-from recon_engine.cli import app
-from recon_engine.demo import run_demo
-from recon_engine.fixtures.generate import PLAN as PACKAGED_CLEAN_PLAN
-from recon_engine.session import Workspace
+from tieout_ai import cli
+from tieout_ai.cli import app
+from tieout_ai.demo import run_demo
+from tieout_ai.fixtures.generate import PLAN as PACKAGED_CLEAN_PLAN
+from tieout_ai.session import Workspace
 
 
 def test_the_packaged_clean_plan_is_the_one_the_tests_use():

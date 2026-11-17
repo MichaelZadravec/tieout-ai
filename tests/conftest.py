@@ -33,7 +33,7 @@ def invoices_db(tmp_path: Path) -> Path:
 
 @pytest.fixture(scope="session")
 def confirmer_keys(tmp_path_factory) -> Path:
-    from recon_engine.signing import init_keys
+    from tieout_ai.signing import init_keys
 
     directory = tmp_path_factory.mktemp("keys")
     init_keys(CONFIRMER, PASSPHRASE, directory)

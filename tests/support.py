@@ -8,8 +8,8 @@ from pathlib import Path
 
 import pandas as pd
 
-from recon_engine.connectors.base import build_extract
-from recon_engine.models import ExtractData
+from tieout_ai.connectors.base import build_extract
+from tieout_ai.models import ExtractData
 
 COLUMNS = ["invoice_id", "invoice_date", "amount", "status"]
 INVOICES = [
@@ -61,9 +61,9 @@ CLEAN_PLAN = {
 
 
 def registered_file(conn_id: str, path: Path):
-    """A file connection as `recon connections add-file` records it: hashed and signed."""
-    from recon_engine.connections import file_registration
-    from recon_engine.models import Connection, ConnectionType
+    """A file connection as `tieout connections add-file` records it: hashed and signed."""
+    from tieout_ai.connections import file_registration
+    from tieout_ai.models import Connection, ConnectionType
 
     registered = {
         **file_registration(path),
@@ -81,15 +81,15 @@ def registered_file(conn_id: str, path: Path):
 
 def signed(connection):
     """A connection signed with the test confirmer key, as a person registering it would."""
-    from recon_engine.connections import sign_connection
+    from tieout_ai.connections import sign_connection
 
     return sign_connection(connection, signer())
 
 
 def fixture_extracts(kind: str = "clean"):
     """Load a committed fixture pair: (manifest, extract A, extract B, MatchSpec)."""
-    from recon_engine.connectors.files import FileConnector
-    from recon_engine.models import MatchSpec
+    from tieout_ai.connectors.files import FileConnector
+    from tieout_ai.models import MatchSpec
 
     dashboard, xero, manifest_file = FIXTURE_FILES[kind]
     manifest = json.loads((FIXTURE_DATA / manifest_file).read_text(encoding="utf-8"))
@@ -113,9 +113,9 @@ def fixture_extracts(kind: str = "clean"):
 
 
 def fixture_context(kind: str = "clean", assumptions=None):
-    from recon_engine.assumptions import AssumptionStore
-    from recon_engine.checks import CheckContext
-    from recon_engine.match import match
+    from tieout_ai.assumptions import AssumptionStore
+    from tieout_ai.checks import CheckContext
+    from tieout_ai.match import match
 
     manifest, a, b, spec = fixture_extracts(kind)
     ctx = CheckContext(
@@ -149,7 +149,7 @@ FIXTURE_MATCH_ARGS = {
 
 def fixture_workspace(root: Path, kind: str = "clean"):
     """A workspace whose connections 'dashboard' and 'xero' point at a fixture pair."""
-    from recon_engine.session import Workspace
+    from tieout_ai.session import Workspace
 
     dashboard, xero, _ = FIXTURE_FILES[kind]
     workspace = Workspace(root)
@@ -165,15 +165,15 @@ PASSPHRASE = "correct horse battery"
 
 
 def signer():
-    from recon_engine.signing import load_signer
+    from tieout_ai.signing import load_signer
 
     return load_signer(PASSPHRASE)
 
 
 def registered_sqlite(conn_id: str, db: Path):
-    """A SQLite connection as `recon connections add-sql` records it: hashed and signed."""
-    from recon_engine.connections import file_registration
-    from recon_engine.models import Connection, ConnectionType
+    """A SQLite connection as `tieout connections add-sql` records it: hashed and signed."""
+    from tieout_ai.connections import file_registration
+    from tieout_ai.models import Connection, ConnectionType
 
     registered = {
         **file_registration(db, sqlite=True),

@@ -1,7 +1,7 @@
 from decimal import Decimal
 from pathlib import Path
 
-from recon_engine.fixtures.generate import DASHBOARD_FILE, MANIFEST_FILE, XERO_FILE, generate
+from tieout_ai.fixtures.generate import DASHBOARD_FILE, MANIFEST_FILE, XERO_FILE, generate
 
 COMMITTED = Path(__file__).parent.parent / "fixtures" / "data"
 

@@ -5,9 +5,9 @@ from decimal import Decimal
 import pytest
 from support import fixture_context, make_extract
 
-from recon_engine.checks import CheckContext, CheckParameterError, get_check, run_checks
-from recon_engine.match import match
-from recon_engine.models import MatchSpec
+from tieout_ai.checks import CheckContext, CheckParameterError, get_check, run_checks
+from tieout_ai.match import match
+from tieout_ai.models import MatchSpec
 
 ROUNDING_KEYS = ["INV-20185", "INV-20186", "INV-20187"]
 TAX = {"rate": "0.10", "inclusive_side": "b"}

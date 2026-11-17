@@ -4,10 +4,10 @@ import pytest
 from pydantic import ValidationError
 from support import INVOICE_TOTAL, INVOICES, make_extract
 
-from recon_engine.connectors.files import FileConnector
-from recon_engine.connectors.sql import SQLConnector
-from recon_engine.match import MatchError, match
-from recon_engine.models import Connection, ConnectionType, MatchSpec, Period
+from tieout_ai.connectors.files import FileConnector
+from tieout_ai.connectors.sql import SQLConnector
+from tieout_ai.match import MatchError, match
+from tieout_ai.models import Connection, ConnectionType, MatchSpec, Period
 
 OCTOBER = Period(start="2026-10-01", end="2026-10-31")
 

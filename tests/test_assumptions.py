@@ -3,9 +3,9 @@ from datetime import UTC, datetime
 import pytest
 from support import signer
 
-from recon_engine.assumptions import AssumptionError, AssumptionStore
-from recon_engine.models import Assumption
-from recon_engine.signing import Signer, SigningError
+from tieout_ai.assumptions import AssumptionError, AssumptionStore
+from tieout_ai.models import Assumption
+from tieout_ai.signing import Signer, SigningError
 
 WHEN = datetime(2026, 11, 4, 9, 0, tzinfo=UTC)
 
@@ -78,7 +78,7 @@ def test_different_values_are_different_assumptions():
 
 
 def test_a_store_sees_changes_made_by_another_process(tmp_path):
-    # The MCP server holds one store open; `recon confirm` writes through another.
+    # The MCP server holds one store open; `tieout confirm` writes through another.
     path = tmp_path / "assumptions.json"
     server_view = AssumptionStore(path)
     assumption_id = server_view.propose(proposal()).id

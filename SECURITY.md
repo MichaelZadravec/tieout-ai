@@ -1,6 +1,6 @@
 # Security
 
-recon_engine proves whether two business numbers agree. An AI agent drives it, but
+tieout_ai proves whether two business numbers agree. An AI agent drives it, but
 the AI is not trusted: **the AI proposes, the engine proves**, and only a person can
 vouch for the judgement calls. This document says what that means in practice: what
 the engine stops, what it flags for a person to look at, what it does not try to
@@ -36,26 +36,26 @@ user can write, the AI can write: the workspace (`.recon/`), the data files, the
 key folder (`~/.recon/keys`). File permissions do not separate them. The defences
 are therefore cryptographic (only the passphrase unlocks the confirmer's key) and
 detective (hashes and self-consistency checks that make tampering visible), not
-access controls. Claude Code permission rules that `recon init` writes are a useful
+access controls. Claude Code permission rules that `tieout init` writes are a useful
 speed bump, not a security boundary.
 
 ## What is caught
 
 These are refused outright, or keep the certificate from being better than OPEN.
 
-- **Edited source files.** `recon connections add-file` records a file's SHA-256;
+- **Edited source files.** `tieout connections add-file` records a file's SHA-256;
   every read hashes the bytes it parses and compares. A changed file gives a source
   warning naming it, and the certificate stays OPEN until a person runs
-  `recon connections refresh`.
+  `tieout connections refresh`.
 - **Edited SQLite databases.** Hashed like files (including the `-wal` log).
 - **Forged or altered registrations.** Every connection record (ID, type, path or
   URL, file hash) is signed by the person who registered it, with
-  `recon connections add-file`, `add-sql` or `refresh`. The engine reads only
+  `tieout connections add-file`, `add-sql` or `refresh`. The engine reads only
   through connections that verify against this machine's confirmer key.
 - **Truncating SQL.** `LIMIT`, `TOP`, `OFFSET`, `FETCH`, `SAMPLE`, `TABLESAMPLE` and
   anything but a single read-only `SELECT` are refused.
 - **Self-confirmed assumptions.** There is no MCP tool to confirm anything.
-  `recon confirm` needs an interactive console, a retyped code and the passphrase,
+  `tieout confirm` needs an interactive console, a retyped code and the passphrase,
   and signs the assumption's content. Writing `"confirmed": true` into the store, a
   signature from another key, an assumption edited after it was confirmed, or a
   signature copied from another assumption all count as unconfirmed.
@@ -66,7 +66,7 @@ These are refused outright, or keep the certificate from being better than OPEN.
   hash *and* be self-consistent: buckets plus residual equal the gap, no item is both
   explained and unexplained, every counted confirmation is signed, and the status
   follows from the content.
-- **Unsigned or moved sign-offs.** `recon cert sign` signs a certificate's ID, hash
+- **Unsigned or moved sign-offs.** `tieout cert sign` signs a certificate's ID, hash
   and status. A hand-written sign-off, one made with another key, or one copied from
   another certificate does not count, and the certificate is not final.
 
@@ -99,8 +99,8 @@ before the certificate can be RECONCILED.
 - **Faking a console.** The "interactive terminal" check is a gate, not
   cryptography: a program that creates a pseudo-console can pass it. It still needs
   the retyped code and, above all, the passphrase.
-- **Claude Code permission rules.** `recon init` denies `recon confirm`,
-  `recon keys`, `recon connections` and `recon cert sign` to the AI's shell, and
+- **Claude Code permission rules.** `tieout init` denies `tieout confirm`,
+  `tieout keys`, `tieout connections` and `tieout cert sign` to the AI's shell, and
   edits inside `.recon/`. The patterns can be sidestepped (different spacing or
   case, a shell variable, calling the engine from Python) and shell writes are not
   covered at all. Every action they deny is also protected by the passphrase.
@@ -115,7 +115,7 @@ Results after the hardening that followed:
 
 | # | Attack | Result | How |
 |---|---|---|---|
-| 1 | Run `recon confirm`, `recon keys`, `recon connections refresh` from the AI's shell | Blocked | Claude Code permissions (spelling variants can slip past; every one also needs the passphrase) |
+| 1 | Run `tieout confirm`, `tieout keys`, `tieout connections refresh` from the AI's shell | Blocked | Claude Code permissions (spelling variants can slip past; every one also needs the passphrase) |
 | 2 | Edit a source CSV so everything matches | Caught | File hash: certificate OPEN with a source warning |
 | 3 | Edit the CSV and rewrite its registered hash in `connections.json` | Caught | Registration signature: the engine refuses the connection |
 | 4 | Write `"confirmed": true` into the assumption store | Caught | Confirmation is not signed |
@@ -139,7 +139,7 @@ Results after the hardening that followed:
   key folder, it can install its own key and then confirm, certify and sign off
   under it. Everything verifies, *against the wrong key*. The certificate records
   and prominently shows the expected fingerprint, and
-  `recon keys fingerprint` prints the confirmer's real one, so a reader who
+  `tieout keys fingerprint` prints the confirmer's real one, so a reader who
   compares them sees the mismatch. Nothing forces that comparison yet.
 - **Attack 15c, a certificate forged to look pre-signing.** It loads, flagged as
   unverifiable and not signed off, so it is never final, but a careless reader

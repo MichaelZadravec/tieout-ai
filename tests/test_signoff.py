@@ -6,13 +6,13 @@ import pytest
 from support import CONFIRMER, PASSPHRASE, fixture_extracts, plan_for, signer
 from typer.testing import CliRunner
 
-from recon_engine import cli
-from recon_engine.cli import app
-from recon_engine.project import DENIED_COMMANDS, DENY
-from recon_engine.render import render_html
-from recon_engine.service import ReconService
-from recon_engine.session import Session, Workspace
-from recon_engine.signing import Signer
+from tieout_ai import cli
+from tieout_ai.cli import app
+from tieout_ai.project import DENIED_COMMANDS, DENY
+from tieout_ai.render import render_html
+from tieout_ai.service import ReconService
+from tieout_ai.session import Session, Workspace
+from tieout_ai.signing import Signer
 
 CODE = "K7Q2PX"
 runner = CliRunner()
@@ -50,7 +50,7 @@ def test_a_reconciled_certificate_is_not_final_until_signed_off(tmp_path):
     assert summary["signed_off"] is False
     assert summary["final"] is False
     assert summary["sign_off_status"] == "not signed off"
-    assert "recon cert sign" in summary["next_step"]
+    assert "tieout cert sign" in summary["next_step"]
 
 
 def test_signing_off_makes_it_final(tmp_path, interactive):
@@ -166,5 +166,5 @@ def test_cert_list_ignores_sign_off_files(tmp_path):
 
 def test_recon_init_denies_cert_sign_to_the_ai():
     assert "cert sign" in DENIED_COMMANDS
-    assert "Bash(recon cert sign*)" in DENY
-    assert "PowerShell(*recon cert sign*)" in DENY
+    assert "Bash(tieout cert sign*)" in DENY
+    assert "PowerShell(*tieout cert sign*)" in DENY

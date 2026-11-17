@@ -6,13 +6,13 @@ import pytest
 from support import FIXTURE_DATA, FIXTURE_MATCH_ARGS, PASSPHRASE, plan_for
 from typer.testing import CliRunner
 
-from recon_engine import cli
-from recon_engine.cli import app
-from recon_engine.connections import file_registration
-from recon_engine.connectors.files import FileConnector
-from recon_engine.models import Connection, ConnectionType
-from recon_engine.service import ReconService
-from recon_engine.session import Workspace
+from tieout_ai import cli
+from tieout_ai.cli import app
+from tieout_ai.connections import file_registration
+from tieout_ai.connectors.files import FileConnector
+from tieout_ai.models import Connection, ConnectionType
+from tieout_ai.service import ReconService
+from tieout_ai.session import Workspace
 
 CODE = "K7Q2PX"
 runner = CliRunner()
@@ -151,7 +151,7 @@ def test_a_file_registered_without_a_hash_cannot_reconcile(tmp_path):
 
     assert data.extract.changed_since_registration is False
     assert "not registered with a file hash" in data.extract.source_warning
-    assert "recon connections refresh old" in data.extract.source_warning
+    assert "tieout connections refresh old" in data.extract.source_warning
 
 
 def test_cli_and_html_show_the_warning(trial, interactive, tmp_path):

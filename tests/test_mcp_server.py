@@ -10,8 +10,8 @@ from mcp.client import Client
 from support import CLEAN_PLAN, FIXTURE_MATCH_ARGS, PASSPHRASE, fixture_workspace
 from typer.testing import CliRunner
 
-from recon_engine import cli
-from recon_engine.mcp_server import build_server
+from tieout_ai import cli
+from tieout_ai.mcp_server import build_server
 
 TOOLS = {
     "list_connections",

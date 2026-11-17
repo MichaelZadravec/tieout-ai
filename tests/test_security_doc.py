@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from recon_engine.project import DENIED_COMMANDS
+from tieout_ai.project import DENIED_COMMANDS
 
 DOC = Path(__file__).parent.parent / "SECURITY.md"
 ATTACKS = [str(n) for n in range(1, 15)] + ["15a", "15b", "15c"]
@@ -29,7 +29,7 @@ def test_security_md_exists_with_the_required_sections():
 def test_every_human_only_command_is_documented():
     doc = text()
     for command in DENIED_COMMANDS:
-        assert f"recon {command}" in doc, command
+        assert f"tieout {command}" in doc, command
 
 
 def test_every_red_team_attack_has_a_row():

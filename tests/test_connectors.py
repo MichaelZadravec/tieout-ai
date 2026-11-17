@@ -4,13 +4,13 @@ import pandas as pd
 import pytest
 from support import COLUMNS, INVOICE_TOTAL, INVOICES, count_rows
 
-from recon_engine.connectors import connector_for
-from recon_engine.connectors import sql as sql_module
-from recon_engine.connectors.base import ConnectorError, UnsafeQueryError
-from recon_engine.connectors.files import FileConnector
-from recon_engine.connectors.sql import SQLConnector
-from recon_engine.hashing import hash_frame, hash_query
-from recon_engine.models import Connection, ConnectionType
+from tieout_ai.connectors import connector_for
+from tieout_ai.connectors import sql as sql_module
+from tieout_ai.connectors.base import ConnectorError, UnsafeQueryError
+from tieout_ai.connectors.files import FileConnector
+from tieout_ai.connectors.sql import SQLConnector
+from tieout_ai.hashing import hash_frame, hash_query
+from tieout_ai.models import Connection, ConnectionType
 
 
 def file_connection(path, conn_id="dashboard"):
