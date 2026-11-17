@@ -52,6 +52,8 @@ h2 { font-size: 16px; margin: 32px 0 10px; padding-bottom: 6px; border-bottom: 1
 .banner.warn { background: var(--warn-bg); color: var(--warn); border: 1px solid #f0c98a; }
 .banner.ok { background: var(--ok-bg); color: var(--ok); border: 1px solid #b7dcc5; }
 .banner.bad { background: var(--bad-bg); color: var(--bad); border: 1px solid #f1b8b2; }
+.fingerprint { margin: 18px 0 0; padding: 12px 16px; border: 2px solid var(--ink); border-radius: 8px; }
+.fingerprint .key { font: 600 17px ui-monospace, "Cascadia Mono", Consolas, monospace; word-break: break-all; }
 .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-top: 20px; }
 .tile { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; }
 .tile .label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .05em; }
@@ -153,6 +155,22 @@ def _source(name: str, extract: Extract) -> str:
     <dt>Query hash</dt><dd class="hash">{_e(extract.query_hash)}</dd>
     <dt>Data hash</dt><dd class="hash">{_e(extract.data_hash)}</dd>
   </dl>
+</div>"""
+
+
+def _fingerprint_panel(cert: Certificate) -> str:
+    """The key confirmations were checked against, for the reader to check against the
+    confirmer's own. A certificate checked against some other key is not theirs."""
+    if not cert.confirmer_key_fingerprint:
+        return (
+            '<div class="fingerprint"><strong>No confirmer key is recorded</strong> on this '
+            "certificate, so its confirmations cannot be verified.</div>"
+        )
+    return f"""<div class="fingerprint">
+  <div class="meta">Expected confirmer key ({_e(cert.confirmer)})</div>
+  <div class="key">{_e(cert.confirmer_key_fingerprint)}</div>
+  <div class="meta">Check this matches what <code>recon keys fingerprint</code> prints on the
+  confirmer's own machine. If it does not, these confirmations were not made with their key.</div>
 </div>"""
 
 
@@ -306,6 +324,7 @@ def render_html(cert: Certificate, sign_off: SignOff | None = None) -> str:
 <main>
   <h1>Reconciliation certificate {status_badge}</h1>
   <div class="meta">{_e(cert.id)} · issued {_e(cert.created_at.isoformat())} · period {_e(period)}{supersedes}</div>
+  {_fingerprint_panel(cert)}
   {_sign_off_banner(cert, sign_off)}
   {source_banner}
   {banner}

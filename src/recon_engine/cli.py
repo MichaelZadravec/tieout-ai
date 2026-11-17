@@ -252,6 +252,16 @@ def init_key(
     typer.echo("whose confirmations were checked against a different key is not yours.")
 
 
+@keys_app.command("fingerprint")
+def key_fingerprint() -> None:
+    """Print this machine's confirmer key fingerprint, to compare with a certificate's."""
+    trusted = load_trusted_key()
+    if trusted is None:
+        _fail(f"No confirmer key in {keys_dir()}. Create one with `recon keys init`.")
+        return
+    typer.echo(trusted.fingerprint)
+
+
 @keys_app.command("show")
 def show_key() -> None:
     """Show whose confirmer key this machine uses, and its fingerprint."""
@@ -372,6 +382,11 @@ def show_certificate(
     out = typer.echo
     sign_off = workspace.sign_off(cert)
     out(f"{cert.id}  {cert.status.value}")
+    if cert.confirmer_key_fingerprint:
+        out(f"Expected confirmer key: {cert.confirmer_key_fingerprint} ({cert.confirmer})")
+        out("  Check it matches `recon keys fingerprint` on the confirmer's own machine.")
+    else:
+        out("No confirmer key is recorded: its confirmations cannot be verified.")
     out(f"Hash verified: {cert.certificate_hash}")
     out(f"Issued {cert.created_at.isoformat()} by engine {cert.engine_version}")
     if cert.status == CertificateStatus.RECONCILED:

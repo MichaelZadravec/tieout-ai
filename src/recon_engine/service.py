@@ -435,6 +435,8 @@ class ReconService:
                 "unverified_confirmations": cert.unverified_confirmations,
                 "source_warnings": cert.source_warnings,
                 "certificate_hash": cert.certificate_hash,
+                "confirmer_key_fingerprint": cert.confirmer_key_fingerprint,
+                "confirmer": cert.confirmer,
                 "signed_off": sign_off.signed,
                 "sign_off_status": sign_off.status,
                 "sign_off": {

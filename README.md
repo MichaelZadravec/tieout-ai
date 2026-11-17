@@ -193,7 +193,10 @@ of its content, your name and the time. `certify` verifies every confirmation
 against your public key: one that is unsigned (for example `"confirmed": true`
 typed into the store), signed by another key, or whose assumption was edited
 after signing counts as unconfirmed, and the certificate says why. Certificates
-record the key's fingerprint and owner; `recon keys show` prints them.
+record the key's fingerprint and owner and show it prominently as the *expected*
+confirmer key. Anyone checking a certificate should compare it with what
+`recon keys fingerprint` prints on the confirmer's own machine: a certificate checked
+against any other key is not theirs.
 This project's `.claude/settings.json` also denies these commands to Claude Code.
 
 ## Signing a certificate off
