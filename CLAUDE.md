@@ -159,4 +159,4 @@ Grain mismatch (line vs header), mapping/coding differences, missing records, ma
 LLM calls, dashboards/analytics, writing to any source system, a desktop app UI, pre-built system-specific integrations (Cliniko, Xero etc.) beyond generic SQL/file/Power BI.
 
 ## 10. Licence
-Source-available (BSL or AGPL + commercial dual licence). Decision pending. Add a placeholder LICENSE.
+Apache-2.0 (see LICENSE).

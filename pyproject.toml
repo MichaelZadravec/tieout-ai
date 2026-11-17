@@ -3,6 +3,7 @@ name = "tieout-ai"
 version = "0.1.0"
 description = "AI TieOut: prove two business numbers agree. The AI proposes, code proves, people confirm."
 readme = "README.md"
+license = "Apache-2.0"
 license-files = ["LICENSE"]
 requires-python = ">=3.11"
 dependencies = [
