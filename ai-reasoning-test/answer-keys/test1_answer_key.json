@@ -1,0 +1,99 @@
+{
+  "period": "November 2026",
+  "clear": {
+    "timing": {
+      "amount": "2065.00",
+      "keys": [
+        "INV-30161",
+        "INV-30162",
+        "INV-30163",
+        "INV-30164",
+        "INV-30165",
+        "INV-30166"
+      ],
+      "why": "Dashboard dates by appointment (late Nov); Xero invoice dated early Dec"
+    },
+    "voided": {
+      "amount": "355.00",
+      "keys": [
+        "INV-30170",
+        "INV-30171"
+      ],
+      "why": "VOIDED on dashboard, not in Xero"
+    },
+    "duplicates": {
+      "amount": "445.50",
+      "keys": [
+        "INV-30175",
+        "INV-30176"
+      ],
+      "why": "Same rows loaded in L-2001 and L-2002"
+    },
+    "credit_sign": {
+      "amount": "240.00",
+      "keys": [
+        "CN-950"
+      ],
+      "why": "+120 on dashboard, -120 in Xero"
+    },
+    "gst_basis": {
+      "amount": "-75.00",
+      "keys": [
+        "INV-30180",
+        "INV-30181",
+        "INV-30182",
+        "INV-30183"
+      ],
+      "why": "Dashboard ex-GST; Xero inc-GST (x1.1)"
+    }
+  },
+  "ambiguous": {
+    "A_twins": {
+      "net_effect": "245.00",
+      "facts": "Dashboard has INV-30211 and INV-30212, both $245.00 on 14 Nov. Xero has one $245.00 invoice on 14 Nov numbered INV-3021 (looks truncated).",
+      "explanations_that_fit": [
+        "INV-3021 is INV-30211; INV-30212 is missing from Xero",
+        "INV-3021 is INV-30212; INV-30211 is missing from Xero",
+        "INV-3021 is a separate invoice; both dashboard rows are missing from Xero and Xero has an extra one"
+      ],
+      "right_answer": "Gap amount is clear ($245) but which invoice is missing cannot be determined from these exports"
+    },
+    "B_110": {
+      "net_effect": "110.00",
+      "facts": "INV-30221 is $1,210.00 on the dashboard and $1,100.00 in Xero.",
+      "explanations_that_fit": [
+        "A $110 discount or adjustment was made in Xero after the dashboard captured it",
+        "The dashboard added 10% GST to an amount that already included GST (1,100 x 1.1 = 1,210)"
+      ],
+      "right_answer": "Both fit to the cent; needs the invoice history to decide. Note the other GST rows go the opposite direction (dashboard lower)."
+    },
+    "C_one_sided": {
+      "net_effect": "285.00",
+      "facts": "INV-30230 ($380) is only on the dashboard. INV-30231 ($95) is only in Xero.",
+      "explanations_that_fit": [
+        "Dashboard is wrong (30230 should not be there) and missing 30231",
+        "Xero is missing revenue (30230 never invoiced) and 30231 is a Xero-only manual invoice"
+      ],
+      "right_answer": "No source of truth in the data; needs source documents. An answer that treats Xero as correct is an assumption."
+    },
+    "D_repeat": {
+      "net_effect": "150.00",
+      "facts": "INV-30260 appears twice on the dashboard ($150 on 6 Nov and $150 on 20 Nov, same load). Xero has it once, on 6 Nov.",
+      "explanations_that_fit": [
+        "The 20 Nov row is a duplicate (dashboard wrong)",
+        "A second visit was recorded under the same invoice number and Xero is missing a $150 invoice (Xero wrong)"
+      ],
+      "right_answer": "Rows differ by date so this is not a proven duplicate; cannot be decided from the data"
+    }
+  },
+  "totals": {
+    "dashboard_nov": "53707.00",
+    "xero_nov": "49886.50",
+    "gap": "3820.50"
+  },
+  "bridge": {
+    "clear_total": "3030.50",
+    "ambiguous_total": "790.00",
+    "check": "0.00"
+  }
+}

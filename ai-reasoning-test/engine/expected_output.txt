@@ -1,0 +1,16 @@
+Status: OPEN
+Gap: 3820.50
+Proven:
+  timing            2065.00  (6 rows)
+  status_filter      355.00  (2 rows)
+  tax_basis          -75.00  (8 rows)
+  duplicates         445.50  (6 rows)
+  sign_credit        240.00  (2 rows)
+Unexplained (net): 790.00
+  only_a      ['INV-30212'] 245.00
+  only_a      ['INV-30230'] 380.00
+  only_a      ['INV-30211'] 245.00
+  only_b      ['INV-30231'] -95.00
+  only_b      ['INV-3021'] -245.00
+  difference  ['INV-30260'] 150.00
+  difference  ['INV-30221'] 110.00
