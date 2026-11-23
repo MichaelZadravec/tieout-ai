@@ -2,24 +2,28 @@
 
 **Prove that two business numbers agree, or explain every dollar of the difference.**
 
-AI TieOut is a reconciliation engine for the age of AI analysts. Your AI assistant
+AI TieOut is a reconciliation engine for the age of AI analysts that seems to be incomming. Your AI assistant
 investigates; the engine proves; you confirm. At the end you get a certificate that
 shows exactly how one number ties out to the other, which a CFO or auditor can read.
 
+AI might be good at designing HTML dashboards... but that was/is never where all of the work is. 
+
+
 ## The problem
 
-Every month-end asks the same question: *why doesn't the dashboard match the ledger?*
+Every month-end asks the same question: *why doesn't the dashboard match the ledger?* or insert (CRM/ERP/random SSRS report)
 
 The answer is usually mundane. Invoices dated by appointment on one side and by
 issue date on the other. Voided invoices one system still counts. GST included here
 and excluded there. A batch exported twice. Finding it takes hours of filtering
-spreadsheets, and the explanation ends up in a workbook nobody can audit.
+spreadsheets, and the explanation ends up in a workbook nobody can audit or even worse in the memory of someone sitting in the company building up key person risk. 
 
 AI assistants are now good at the investigating part. They can read the data, spot
 patterns and form hypotheses in minutes. But an answer that *sounds* right is not
 an answer that *is* right. Left alone, an AI will happily round a residual away,
 filter out the awkward rows, or tell you the numbers reconcile when they don't. In
-finance, that difference matters.
+finance, board reporting and that difference matters.
+Furthermore, anyone working with large datasets will tell you... once people start doubting accuracy and what they are reading, it can be hard to get confidence back. 
 
 ## AI proposes, code proves, people confirm
 
