@@ -93,3 +93,4 @@ def test_the_roadmap_replaces_the_old_backlog():
     for heading in ("## Done", "## Now", "## Next", "## Later", "## Out of scope"):
         assert heading + "\n" in roadmap, heading
     assert "(ROADMAP.md)" in (ROOT / "README.md").read_text(encoding="utf-8")
+    assert "**Privacy mode.**" in roadmap

@@ -57,3 +57,20 @@ def test_the_problem_matches_what_the_reasoning_test_found():
     problem = section("## The problem")
     assert "round a residual away" not in problem
     assert "(ai-reasoning-test/)" in problem
+
+
+def test_the_readme_says_what_data_the_ai_sees():
+    data = section("## Your data and the AI")
+    for point in ("profile", "rows", "data policy", "(ROADMAP.md)"):
+        assert point in data, point
+
+
+def test_the_readme_does_not_oversell_the_certificate():
+    assert "auditor can read" not in README
+    limits = section("## Limitations")
+    assert "proof of concept" in limits
+    assert "which source is right" in limits
+
+
+def test_the_test_result_is_told_once():
+    assert README.count("found every") == 1
