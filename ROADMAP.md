@@ -62,6 +62,9 @@ Handling the shape real data comes in.
 - **Clean-up as assumptions.** Trimming spaces and ignoring case in keys and
   statuses, each recorded as an assumption a person confirms, rather than left to
   the check plan. (The [reasoning test](ai-reasoning-test/) showed why this matters.)
+- **Privacy mode.** An option where the AI sees only keys, counts and totals, never
+  row values or example values, for organisations that can't send finance data to
+  an AI provider. The investigation is slower, but the proof is the same.
 - **Power BI connector.** DAX through the REST `executeQueries` API or XMLA,
   treated as an extract like any other.
 - **Tested database guides.** Live tests and setup notes for PostgreSQL and

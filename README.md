@@ -2,13 +2,13 @@
 
 **Prove that two business numbers agree, or explain every dollar of the difference.**
 
-AI is already good at building dashboards, but that was never where most of the work is. The next frontier is AI building semantic models and reporting that spans platforms. It has some hurdles to clear first, and the first one is trust in the numbers. That's what AI TieOut is for: your AI assistant investigates, the engine proves, and you confirm. At the end you get a certificate a CFO or auditor can read. 
+AI is already good at building dashboards, but that was never where most of the work is. The next frontier is AI building semantic models and reporting that spans platforms. It has some hurdles to clear first, and the first one is trust in the numbers. That's what AI TieOut is for: your AI assistant investigates, the engine proves, and you confirm. At the end you get a documented, checkable record of how one number ties to the other, for whoever has to sign it off.
 
 ## The problem
 
 If an AI tells you it did something, did it actually do it? And what did it assume to get there?
 
-In finance and reconciliations, those assumptions can be big ones. In our own test, an AI found every real cause of a gap, then quietly decided the parts the data couldn't settle and told us the numbers fully reconciled. It sounded most confident exactly where it should have been least sure.
+In finance and reconciliations, those assumptions can be big ones. In [our own test](ai-reasoning-test/), an AI found every real cause of a gap, then quietly decided the parts the data couldn't settle and told us the numbers fully reconciled. It sounded most confident exactly where it should have been least sure.
 
 Every month-end asks the same question: *why doesn't the dashboard match the
 ledger?* Or the CRM, the ERP, or that random SSRS report.
@@ -21,10 +21,7 @@ worse, in one person's head, which builds key-person risk.
 
 AI assistants are now good at the investigating part. They can read the data, spot
 patterns and form hypotheses in minutes. But an answer that *sounds* right is not
-an answer that *is* right. In [our own test](ai-reasoning-test/), an AI found every
-real cause of a gap, then quietly decided the parts the data couldn't settle (which
-system was right, whether a repeated invoice was a duplicate) and told us the
-numbers fully reconciled. In finance and board reporting, that difference matters.
+an answer that *is* right. In finance and board reporting, that difference matters.
 And anyone who works with large datasets will tell you: once people start doubting
 what they're reading, it's hard to win their confidence back.
 
@@ -146,7 +143,8 @@ tieout cert sign <certificate_id>
 
 ## Limitations
 
-AI TieOut is v0.1, and it's honest about its limits:
+AI TieOut is a v0.1 proof of concept. It shows where AI-assisted reconciliation
+could go; it isn't a finished product. Its limits:
 
 - **Sources:** CSV and Excel files, SQLite, and SQL databases through SQLAlchemy.
   The test suite covers SQLite, and the engine has been run against a live
@@ -159,6 +157,9 @@ AI TieOut is v0.1, and it's honest about its limits:
 - **Six checks.** Differences that live only in the ledger, such as accruals, manual
   journals and deferred revenue, aren't explained yet. They stay unexplained, which
   is honest but not yet helpful.
+- **It explains the difference; it doesn't say which source is right.** If both
+  systems hold the same wrong number, they reconcile. If they differ, the
+  certificate shows exactly where and why, not which one to believe.
 - **Confirming and signing off happen in a terminal.** A local review page is on
   the way.
 - **Tested on synthetic data.** The demo and the reasoning test use generated data.
@@ -166,6 +167,24 @@ AI TieOut is v0.1, and it's honest about its limits:
 
 The [roadmap](ROADMAP.md) says what's coming next and what's deliberately out of
 scope.
+
+## Your data and the AI
+
+The engine runs on your machine and sends nothing anywhere. But the AI assistant
+that drives it does see your data, and so does the company that provides that AI.
+Through the MCP tools, the AI receives:
+
+- a profile of each source: column names, counts, minimums, maximums and totals,
+  and up to 20 example values per column;
+- any rows it asks for, a page at a time;
+- every unexplained item, with its key and both amounts.
+
+If the AI also has a shell, as it does in Claude Code, it can read your files
+directly too. So treat using AI TieOut as sending finance data to your AI provider:
+use an AI covered by your company's agreement and data policy, and use exports that
+leave out anything the reconciliation doesn't need, such as customer names. A
+privacy mode, where the AI works from keys and totals only, is on the
+[roadmap](ROADMAP.md).
 
 ## Security
 
