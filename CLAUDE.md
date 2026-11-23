@@ -100,7 +100,8 @@ src/tieout_ai/
   fixtures/               # deterministic clean and messy "dashboard vs Xero" pairs
 fixtures/                 # committed fixture data + regeneration entry points
 tests/                    # pytest
-docs/design/              # design notes from earlier rounds of work
+ROADMAP.md                # what's done, now, next, later and out of scope
+ai-reasoning-test/        # reproducible test of how an AI chat reasons about a gap
 .github/workflows/        # CI (3 OSes x Python 3.11/3.14) and PyPI publishing
 ```
 
@@ -141,16 +142,8 @@ SQLite hashing, signed registrations, signed confirmations, SQL filter and
 computed-column assumptions, self-consistent certificates, sign-off); `tieout init`;
 `tieout demo`; release packaging, CI and publishing.
 
-Next: a Power BI connector (DAX via the REST `executeQueries` API or XMLA, treated as an
-extract like any other). Done when a measure value from a Power BI model can be
-reconciled against a SQL source.
-
-Future work, out of scope for now: anchoring certificates and confirmer fingerprints
-somewhere the AI cannot write (see SECURITY.md, "Known limitations").
-
-Later checks backlog: grain mismatch (line vs header), mapping/coding differences,
-missing records, manual journals/accruals, FX, scope (site/entity/intercompany),
-timezone cut-off (UTC vs local, e.g. AEST/AEDT).
+What comes next, and in what order, is in ROADMAP.md (sections Now, Next, Later and
+Under consideration). Keep it up to date as items are finished: move them to Done.
 
 ## 8. Working rules
 
