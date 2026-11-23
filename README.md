@@ -2,7 +2,9 @@
 
 **Prove that two business numbers agree, or explain every dollar of the difference.**
 
-AI is already good at building dashboards, but that was never where most of the work is. The next frontier is AI building semantic models and reporting that spans platforms. It has some hurdles to clear first, and the first one is trust in the numbers. That's what AI TieOut is for: your AI assistant investigates, the engine proves, and you confirm. At the end you get a documented, checkable record of how one number ties to the other, for whoever has to sign it off.
+AI is already good at building dashboards, but that was never where most of the work is. The next frontier is AI building semantic models and reporting that spans platforms. It has some hurdles to clear first, and the first one is trust in the numbers. 
+
+That's what AI TieOut is, my proof of concept to bridge this gap: your AI assistant investigates, the engine proves, and you confirm. At the end you get a documented, checkable record of how one number ties to the other, for whoever has to sign it off.
 
 ## The problem
 
