@@ -187,13 +187,13 @@ for i in range(1, 11):
 random.shuffle(dash)
 random.shuffle(xero)
 with open(OUT / "dashboard_nov2026.csv", "w", newline="") as f:
-    w = csv.writer(f)
+    w = csv.writer(f, lineterminator="\n")
     w.writerow(
         ["invoice_number", "appointment_date", "amount", "status", "type", "load_id", "loaded_at"]
     )
     w.writerows(dash)
 with open(OUT / "xero_export_nov.csv", "w", newline="") as f:
-    w = csv.writer(f)
+    w = csv.writer(f, lineterminator="\n")
     w.writerow(["InvoiceNumber", "InvoiceDate", "Total", "Status", "Type"])
     w.writerows(xero)
 
