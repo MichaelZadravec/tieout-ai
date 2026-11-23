@@ -37,7 +37,7 @@ def test_no_home_directory_paths_ship_in_the_repo():
         ROOT / "tests",
         ROOT / "fixtures",
         *ROOT.glob("*.md"),
-        ROOT / "docs",
+        *([ROOT / "docs"] if (ROOT / "docs").is_dir() else []),
         ROOT / "pyproject.toml",
     ]
     offenders = []
@@ -82,5 +82,14 @@ def test_the_brief_matches_the_release():
     assert brief.count("paid") == brief.count("hosted or paid service")
     assert "`tieout`" in brief and "tieout-mcp" in brief
     assert "recon_engine" not in brief and ".recon/" not in brief.replace("~/.recon/keys", "")
-    assert (ROOT / "docs" / "design" / "BACKLOG_4B.md").is_file()
-    assert not (ROOT / "BACKLOG_4B.md").exists()
+    assert "ROADMAP.md" in brief
+
+
+def test_the_roadmap_replaces_the_old_backlog():
+    """Finished briefs are not left lying around to read like open bugs."""
+    roadmap = (ROOT / "ROADMAP.md").read_text(encoding="utf-8")
+
+    assert not list(ROOT.rglob("BACKLOG*.md"))
+    for heading in ("## Done", "## Now", "## Next", "## Later", "## Out of scope"):
+        assert heading + "\n" in roadmap, heading
+    assert "(ROADMAP.md)" in (ROOT / "README.md").read_text(encoding="utf-8")
