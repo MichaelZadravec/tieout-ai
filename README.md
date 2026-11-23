@@ -17,9 +17,11 @@ spreadsheets, and the explanation ends up in a workbook nobody can audit.
 
 AI assistants are now good at the investigating part. They can read the data, spot
 patterns and form hypotheses in minutes. But an answer that *sounds* right is not
-an answer that *is* right. Left alone, an AI will happily round a residual away,
-filter out the awkward rows, or tell you the numbers reconcile when they don't. In
-finance, that difference matters.
+an answer that *is* right. In [our own test](ai-reasoning-test/), an AI found every
+real cause of a gap, then quietly decided the parts the data couldn't settle (which
+system was right, whether a repeated invoice was a duplicate) and told us the
+numbers fully reconciled. In finance, a judgement call needs a person's name
+against it.
 
 ## AI proposes, code proves, people confirm
 
@@ -111,6 +113,10 @@ tieout connections add-file dashboard path/to/dashboard.csv
 tieout connections add-sql ledger
 ```
 
+A SQL database needs its driver installed alongside the tool, for PostgreSQL for
+example `uv tool install tieout-ai --with "psycopg[binary]"`, and a URL such as
+`postgresql+psycopg://readonly_user@host/database`.
+
 Open Claude Code in that folder and ask it to reconcile, in plain English. Other
 MCP clients can run the server directly with `tieout-mcp --home .tieout`. When the
 AI reports assumptions to confirm, review them and confirm the ones you agree with:
@@ -132,6 +138,29 @@ tieout cert show <certificate_id> --html certificate.html
 ```bash
 tieout cert sign <certificate_id>
 ```
+
+## Limitations
+
+AI TieOut is v0.1, and it's honest about its limits:
+
+- **Sources:** CSV and Excel files, SQLite, and SQL databases through SQLAlchemy.
+  The test suite covers SQLite, and the engine has been run against a live
+  PostgreSQL 16 server with a read-only user. SQL Server and MySQL should work
+  the same way but haven't been tested yet. There's no Power BI connector yet.
+- **Matching needs a shared key.** Both sources must carry the same ID (an invoice
+  number, say). When systems use different IDs, you need a mapping first.
+- **One row matches one row.** A payment that covers several invoices isn't matched
+  yet.
+- **Six checks.** Differences that live only in the ledger, such as accruals, manual
+  journals and deferred revenue, aren't explained yet. They stay unexplained, which
+  is honest but not yet helpful.
+- **Confirming and signing off happen in a terminal.** A local review page is on
+  the way.
+- **Tested on synthetic data.** The demo and the reasoning test use generated data.
+  Real-world cases are the most useful contribution you could make.
+
+The [roadmap](ROADMAP.md) says what's coming next and what's deliberately out of
+scope.
 
 ## Security
 
