@@ -1,0 +1,193 @@
+{
+  "claims": {
+    "duplicates": {
+      "amount": "612.00",
+      "count": 3,
+      "keys": [
+        "INV-20188",
+        "INV-20189",
+        "INV-20190"
+      ]
+    },
+    "rounding": {
+      "amount": "-0.01",
+      "count": 1,
+      "keys": [
+        "INV-20187"
+      ]
+    },
+    "sign_flip": {
+      "amount": "190.00",
+      "count": 1,
+      "keys": [
+        "CN-901"
+      ]
+    },
+    "status_filter": {
+      "amount": "220.00",
+      "count": 2,
+      "keys": [
+        "INV-20173",
+        "INV-20174"
+      ]
+    },
+    "tax_basis": {
+      "amount": "-64.65",
+      "count": 8,
+      "keys": [
+        "INV-20179",
+        "INV-20180",
+        "INV-20181",
+        "INV-20182",
+        "INV-20183",
+        "INV-20184",
+        "INV-20185",
+        "INV-20186"
+      ]
+    },
+    "timing": {
+      "amount": "4599.00",
+      "count": 10,
+      "keys": [
+        "INV-20161",
+        "INV-20162",
+        "INV-20163",
+        "INV-20164",
+        "INV-20165",
+        "INV-20166",
+        "INV-20167",
+        "INV-20168",
+        "INV-20169",
+        "INV-20170"
+      ]
+    }
+  },
+  "expected_gap": "6882.34",
+  "period": {
+    "end": "2026-10-31",
+    "start": "2026-10-01"
+  },
+  "plan": [
+    [
+      "timing",
+      {
+        "max_shift_days": 31
+      }
+    ],
+    [
+      "status_filter",
+      {
+        "side": "a",
+        "status_column": "status",
+        "statuses": [
+          "VOIDED",
+          "Voided"
+        ]
+      }
+    ],
+    [
+      "tax_basis",
+      {
+        "inclusive_side": "b",
+        "rate": "0.10",
+        "rounding_tolerance": "0.01"
+      }
+    ],
+    [
+      "duplicates",
+      {
+        "compare_columns": [
+          "invoice_number",
+          "appointment_date",
+          "amount",
+          "status",
+          "type"
+        ],
+        "side": "a"
+      }
+    ],
+    [
+      "sign_credit",
+      {
+        "mode": "sign_flip"
+      }
+    ],
+    [
+      "rounding",
+      {
+        "tolerance": "0.01"
+      }
+    ]
+  ],
+  "residual": {
+    "amount": "1326.00",
+    "items": [
+      {
+        "amount": "340.00",
+        "key": "INV-20171",
+        "kind": "only_a",
+        "reason": "timing and GST together: amounts differ across periods"
+      },
+      {
+        "amount": "470.00",
+        "key": "INV-20172",
+        "kind": "only_a",
+        "reason": "timing and GST together: amounts differ across periods"
+      },
+      {
+        "amount": "130.00",
+        "key": "INV-20175",
+        "kind": "only_a",
+        "reason": "status 'voided ' not named in the plan"
+      },
+      {
+        "amount": "140.00",
+        "key": "INV-20176",
+        "kind": "only_a",
+        "reason": "status ' VOIDED' not named in the plan"
+      },
+      {
+        "amount": "75.00",
+        "key": "INV-20177",
+        "kind": "only_a",
+        "reason": "dashboard-only row with no status"
+      },
+      {
+        "amount": "210.00",
+        "key": "INV-20178 ",
+        "kind": "only_a",
+        "reason": "invoice number has a trailing space"
+      },
+      {
+        "amount": "-210.00",
+        "key": "INV-20178",
+        "kind": "only_b",
+        "reason": "invoice number has a trailing space"
+      },
+      {
+        "amount": "55.00",
+        "key": null,
+        "kind": "only_a",
+        "reason": "row has no invoice number"
+      },
+      {
+        "amount": "180.00",
+        "key": "INV-20191",
+        "kind": "difference",
+        "reason": "repeated invoice on different dates, not a copy"
+      },
+      {
+        "amount": "0.00",
+        "key": "INV-20192",
+        "kind": "data_quality",
+        "reason": "dashboard amount is empty"
+      },
+      {
+        "amount": "-64.00",
+        "key": "INV-20192",
+        "kind": "only_b",
+        "reason": "its dashboard row has no amount"
+      }
+    ]
+  }
+}

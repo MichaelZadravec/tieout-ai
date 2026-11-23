@@ -170,6 +170,14 @@ rows, every judgement call written down and confirmed by a person.
 
 AI TieOut is that tool. I hope it saves you some month-ends.
 
+## Test an AI yourself
+
+[ai-reasoning-test/](ai-reasoning-test/) is a reproducible test of how an AI chat
+assistant reasons about a reconciliation when some of the gap genuinely can't be
+determined from the data. It has the files, the exact prompts (and why each is
+worded the way it is), answer keys, a scoring sheet and my raw results, so you can
+run it on your own computer and check my conclusions.
+
 ## Contributing
 
 Contributions are welcome, especially new checks. [CONTRIBUTING.md](CONTRIBUTING.md)
