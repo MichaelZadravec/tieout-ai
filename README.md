@@ -2,8 +2,6 @@
 
 **Prove that two business numbers agree, or explain every dollar of the difference.**
 
-AI might be good at designing dashboards, but that was never where most of the work
-is.
 AI is already good at building dashboards, but that was never where most of the work is. The next frontier is AI building semantic models and reporting that spans platforms. It has some hurdles to clear first, and the first one is trust in the numbers. That's what AI TieOut is for: your AI assistant investigates, the engine proves, and you confirm. At the end you get a certificate a CFO or auditor can read. 
 
 ## The problem
