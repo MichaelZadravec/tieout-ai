@@ -96,5 +96,5 @@ These are deliberate, not gaps:
 - Dashboards and analytics.
 - A desktop app.
 - A hosted or paid service.
-- Pre-built integrations for specific products (Xero, Cliniko and so on). The engine
+- Pre-built integrations for specific products. The engine
   stays generic: files, SQL and Power BI.
